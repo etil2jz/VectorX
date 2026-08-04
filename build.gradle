@@ -1,0 +1,160 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+repositories {
+	// Add repositories to retrieve artifacts from in here.
+	// You should only use this when depending on other mods because
+	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
+	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
+	// for more information about repositories.
+	mavenCentral()
+	maven {
+		name = "FzzyMaven"
+		url = "https://maven.fzzyhmstrs.me/"
+	}
+	maven {
+		// ModMenu, dev-only: verifies the config GUI actually registers.
+		name = "Terraformers"
+		url = "https://maven.terraformersmc.com/"
+	}
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"vectorx" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+
+	runs {
+		client {
+			vmArgs "--add-modules=jdk.incubator.vector"
+		}
+		server {
+			vmArgs "--add-modules=jdk.incubator.vector"
+		}
+	}
+}
+
+dependencies {
+	// To change the versions see the gradle.properties file
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+	// fabric-api is intentionally NOT declared: this only needs FabricLoader
+	// (mod list), which ships with fabric-loader itself.
+	// Adding it back only if a concrete Fabric event becomes necessary.
+
+	// Config: Fzzy Config (TOML, validation, GUI, ModMenu integration) and its
+	// mandatory Kotlin runtime. jar-in-jar is prohibited by Fzzy Config's
+	// license (TDL-M), so both are real, user-facing dependencies -- see
+	// fabric.mod.json's "depends" block.
+	//
+	// Plain `implementation`, not `modImplementation`: this project targets
+	// Minecraft 26.2's official, already-deobfuscated jars, so
+	// disableObfuscation() is true and Loom never creates the mod* remap
+	// configurations (verified: LoomConfigurations.run() skips
+	// createRemapConfigurations(mainSourceSet) entirely in that case).
+	implementation "me.fzzyhmstrs:fzzy_config:${fzzy_config_version}"
+	implementation "net.fabricmc:fabric-language-kotlin:${fabric_language_kotlin_version}"
+
+	// Dev-environment only: exercises the config screen registration without
+	// making ModMenu a runtime dependency of the shipped mod (it is not
+	// declared in fabric.mod.json's "depends").
+	runtimeOnly "com.terraformersmc:modmenu:${modmenu_version}"
+
+	testImplementation platform("org.junit:junit-bom:${junit_version}")
+	testImplementation "org.junit.jupiter:junit-jupiter"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+// --- JMH benchmark source set (manually wired) ---
+sourceSets {
+	jmh {
+		java.srcDir "src/jmh/java"
+		resources.srcDir "src/jmh/resources"
+		compileClasspath += sourceSets.main.output
+		runtimeClasspath += sourceSets.main.output
+	}
+}
+
+configurations {
+	jmhImplementation.extendsFrom implementation
+	jmhAnnotationProcessor
+}
+
+dependencies {
+	jmhImplementation "org.openjdk.jmh:jmh-core:${jmh_version}"
+	jmhAnnotationProcessor "org.openjdk.jmh:jmh-generator-annprocess:${jmh_version}"
+}
+
+tasks.register("jmhRun", JavaExec) {
+	group = "verification"
+	description = "Runs the JMH benchmarks (jdk.incubator.vector required at runtime)."
+	dependsOn tasks.named("jmhClasses")
+	classpath = sourceSets.jmh.runtimeClasspath
+	mainClass.set("org.openjdk.jmh.Main")
+	jvmArgs = ["--add-modules=jdk.incubator.vector"]
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.compilerArgs.addAll(["--add-modules", "jdk.incubator.vector"])
+}
+
+tasks.named("test", Test) {
+	useJUnitPlatform()
+	jvmArgs "--add-modules=jdk.incubator.vector"
+}
+
+java {
+	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+	// if it is present.
+	// If you remove this line, sources will not be generated.
+	withSourcesJar()
+
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+
+	from("LICENSE") {
+		rename { "${it}_$projectName"}
+	}
+}
+
+// configure the maven publication
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			from components.java
+		}
+	}
+
+	// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+	repositories {
+		// Add repositories to publish to here.
+		// Notice: This block does NOT have the same function as the block in the top level.
+		// The repositories here will be used for publishing your artifact, not for
+		// retrieving dependencies.
+	}
+}
