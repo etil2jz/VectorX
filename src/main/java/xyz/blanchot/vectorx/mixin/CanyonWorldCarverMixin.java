@@ -28,9 +28,13 @@ import java.util.function.Function;
  * {@code worldY} loop of {@code WorldCarver.carveEllipsoid} -- for the one
  * carver where it's both cleanly reachable and worth it: see
  * {@code bench.CarverShouldSkipBenchmark} (an exploratory JMH prototype, not
- * the shipped kernel itself) for the measured 1.4x-3.9x range across
- * realistic vertical-radius sizes, canyon's typical range (yScale=3.0 in
- * vanilla's own {@code canyon.json}) landing at the high end. Correctness of
+ * the shipped kernel itself, but using the same true-division formula as
+ * {@code SimdCarverSkipKernels} -- an earlier measurement against a
+ * precomputed-reciprocal stand-in overstated the gain) for the measured
+ * range: negligible below one vector's lane width (~8 for AVX-512 double --
+ * too short a Y-sweep never fills a lane), up to roughly 3.4x once it does.
+ * Canyon's typical range (yScale=3.0 in vanilla's own {@code canyon.json})
+ * lands well past that width. Correctness of
  * the shipped path -- both the skip-mask math and the surrounding bounds/
  * traversal reimplementation this Mixin owns -- is covered by
  * {@code CarverSkipDifferentialTest} and {@code CanyonCarveGeometryTest}.

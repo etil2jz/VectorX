@@ -116,12 +116,13 @@ public class CarverShouldSkipBenchmark {
     @Benchmark
     public boolean[] vectorShouldSkip() {
         double horizSum = xd * xd + zd * zd;
-        double invVerticalRadius = 1.0 / verticalRadius;
-        double yOffset = 0.5 + y;
         int n = maxY - minY;
         int lanes = DSPECIES.length();
         int bound = DSPECIES.loopBound(n);
 
+        // True div, not a precomputed-reciprocal multiply -- matches the
+        // shipped SimdCarverSkipKernels exactly, so this benchmark measures
+        // the computation that actually ships, not a cheaper stand-in.
         // Ascending worldY order internally (independent per lane; only the
         // *set* of skip results matters, not vanilla's descending iteration
         // order), starting at minY + 1 .. maxY.
@@ -129,12 +130,12 @@ public class CarverShouldSkipBenchmark {
         for (; i < bound; i += lanes) {
             int worldYBase = minY + 1 + i;
             DoubleVector worldYVec = LANE_OFFSETS.add((double) worldYBase);
-            DoubleVector ydVec = worldYVec.sub(yOffset).mul(invVerticalRadius);
+            DoubleVector ydVec = worldYVec.sub(0.5).sub(y).div(verticalRadius);
 
             FloatVector wfpVec = FloatVector.fromArray(FSPECIES, widthFactorPerHeight, worldYBase - 1);
             DoubleVector wfpVecD = (DoubleVector) wfpVec.convertShape(VectorOperators.F2D, DSPECIES, 0);
 
-            DoubleVector lhs = ydVec.mul(ydVec).mul(1.0 / 6.0).add(wfpVecD.mul(horizSum));
+            DoubleVector lhs = ydVec.mul(ydVec).div(6.0).add(wfpVecD.mul(horizSum));
             VectorMask<Double> mask = lhs.compare(VectorOperators.GE, 1.0);
             for (int lane = 0; lane < lanes; lane++) {
                 skipOut[i + lane] = mask.laneIsSet(lane);
@@ -142,7 +143,7 @@ public class CarverShouldSkipBenchmark {
         }
         for (; i < n; i++) {
             int worldY = minY + 1 + i;
-            double yd = (worldY - yOffset) * invVerticalRadius;
+            double yd = (worldY - 0.5 - y) / verticalRadius;
             skipOut[i] = horizSum * widthFactorPerHeight[worldY - 1] + yd * yd / 6.0 >= 1.0;
         }
         return skipOut;
