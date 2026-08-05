@@ -11,9 +11,11 @@ import xyz.blanchot.vectorx.compat.CompatibilityRegistry;
 import xyz.blanchot.vectorx.config.VectorXFzzyConfig;
 import xyz.blanchot.vectorx.diag.Diagnostics;
 import xyz.blanchot.vectorx.diag.VectorXLog;
+import xyz.blanchot.vectorx.dispatch.CarverSkipDispatcher;
 import xyz.blanchot.vectorx.dispatch.ClampDispatcher;
 import xyz.blanchot.vectorx.dispatch.DensityMapDispatcher;
 import xyz.blanchot.vectorx.dispatch.PackedBitsDispatcher;
+import xyz.blanchot.vectorx.kernel.CarverSkipKernels;
 import xyz.blanchot.vectorx.kernel.ClampKernels;
 import xyz.blanchot.vectorx.kernel.DensityMapKernels;
 import xyz.blanchot.vectorx.kernel.PackedBitsKernels;
@@ -39,6 +41,7 @@ public class VectorX implements ModInitializer {
     private static volatile DensityMapKernels activeDensityMapKernels;
     private static volatile ClampKernels activeClampKernels;
     private static volatile PackedBitsKernels activePackedBitsKernels;
+    private static volatile CarverSkipKernels activeCarverSkipKernels;
 
     /**
      * The resolved {@code densityFunctionMap} backend, consulted by
@@ -79,6 +82,19 @@ public class VectorX implements ModInitializer {
         return k;
     }
 
+    /**
+     * The resolved {@code canyonCarverSkip} backend, consulted by
+     * {@code mixin.CanyonWorldCarverMixin}. Available once
+     * {@link #onInitialize()} has run.
+     */
+    public static CarverSkipKernels carverSkip() {
+        CarverSkipKernels k = activeCarverSkipKernels;
+        if (k == null) {
+            throw new IllegalStateException("VectorX.carverSkip() called before onInitialize()");
+        }
+        return k;
+    }
+
     @Override
     public void onInitialize() {
         VectorXLog log = new Slf4jLog(LOGGER);
@@ -95,7 +111,10 @@ public class VectorX implements ModInitializer {
         PackedBitsDispatcher packedBitsDispatcher = new PackedBitsDispatcher(config, log);
         activePackedBitsKernels = packedBitsDispatcher.backend();
 
-        LOGGER.info(Diagnostics.oneLineSummary(densityMapDispatcher, clampDispatcher, packedBitsDispatcher));
+        CarverSkipDispatcher carverSkipDispatcher = new CarverSkipDispatcher(config, log);
+        activeCarverSkipKernels = carverSkipDispatcher.backend();
+
+        LOGGER.info(Diagnostics.oneLineSummary(densityMapDispatcher, clampDispatcher, packedBitsDispatcher, carverSkipDispatcher));
 
         if (config.diagnosticsEnabled()) {
             List<String> loadedModIds = new ArrayList<>();
@@ -103,7 +122,7 @@ public class VectorX implements ModInitializer {
                 loadedModIds.add(mod.getMetadata().getId());
             }
             LOGGER.info(Diagnostics.fullReport(config, densityMapDispatcher, clampDispatcher,
-                    packedBitsDispatcher, VectorX.class.getClassLoader(), new CompatibilityRegistry(), loadedModIds));
+                    packedBitsDispatcher, carverSkipDispatcher, VectorX.class.getClassLoader(), new CompatibilityRegistry(), loadedModIds));
         }
     }
 }

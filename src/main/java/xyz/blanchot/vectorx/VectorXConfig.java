@@ -35,6 +35,7 @@ public final class VectorXConfig {
         modes.put("densityFunctionMap", KernelMode.AUTO);
         modes.put("densityFunctionClamp", KernelMode.AUTO);
         modes.put("packedStorageUnpack", KernelMode.AUTO);
+        modes.put("canyonCarverSkip", KernelMode.AUTO);
         return new VectorXConfig(false, true, false, modes);
     }
 

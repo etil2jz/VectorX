@@ -49,9 +49,20 @@ dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
-	// fabric-api is intentionally NOT declared: this only needs FabricLoader
-	// (mod list), which ships with fabric-loader itself.
-	// Adding it back only if a concrete Fabric event becomes necessary.
+	// fabric-api is intentionally NOT a runtime dependency: this only needs
+	// FabricLoader (mod list), which ships with fabric-loader itself.
+	//
+	// modCompileOnly below is a narrower, compile-time-only exception:
+	// CanyonWorldCarverMixin compiles against net.minecraft.world.level.chunk.
+	// ChunkAccess, whose interface hierarchy in this dev-time jar references
+	// FabricBlockGetter/AttachmentTarget. javac must resolve those to
+	// compile ANY method call on ChunkAccess, even ones with nothing to do
+	// with Fabric API. Not present at runtime, not in fabric.mod.json's
+	// "depends" -- purely so javac can see the full type hierarchy.
+	// Plain compileOnly, not modCompileOnly: this project disables
+	// obfuscation (see the fzzy_config comment above), so Loom never
+	// creates the mod* remap configurations here either.
+	compileOnly "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
 
 	// Config: Fzzy Config (TOML, validation, GUI, ModMenu integration) and its
 	// mandatory Kotlin runtime. jar-in-jar is prohibited by Fzzy Config's
@@ -64,6 +75,15 @@ dependencies {
 	// configurations (verified: LoomConfigurations.run() skips
 	// createRemapConfigurations(mainSourceSet) entirely in that case).
 	implementation "me.fzzyhmstrs:fzzy_config:${fzzy_config_version}"
+
+	// MixinExtras: only for @Local capture in CanyonWorldCarverMixin.
+	// compileOnly + annotationProcessor, no `include`: fabric-loader
+	// 0.19.3+ already bundles mixinextras-fabric (verified by inspecting
+	// its jar's META-INF/jars/), so bundling our own copy would just be a
+	// redundant duplicate at runtime. Version pinned to match exactly what
+	// that loader version ships to avoid any ABI drift.
+	compileOnly "io.github.llamalad7:mixinextras-fabric:${mixinextras_version}"
+	annotationProcessor "io.github.llamalad7:mixinextras-fabric:${mixinextras_version}"
 
 	testImplementation platform("org.junit:junit-bom:${junit_version}")
 	testImplementation "org.junit.jupiter:junit-jupiter"

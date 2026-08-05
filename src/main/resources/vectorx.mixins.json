@@ -6,7 +6,9 @@
 		"DensityFunctionsMappedMixin",
 		"DensityFunctionsClampMixin",
 		"SimpleBitStorageMixin",
-		"PalettedContainerMixin"
+		"PalettedContainerMixin",
+		"CanyonWorldCarverMixin",
+		"WorldCarverAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 0

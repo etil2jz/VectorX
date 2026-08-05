@@ -10,6 +10,7 @@ import net.minecraft.resources.Identifier;
 import xyz.blanchot.vectorx.VectorX;
 import xyz.blanchot.vectorx.VectorXConfig;
 import xyz.blanchot.vectorx.VectorXConfig.KernelMode;
+import xyz.blanchot.vectorx.dispatch.CarverSkipDispatcher;
 import xyz.blanchot.vectorx.dispatch.ClampDispatcher;
 import xyz.blanchot.vectorx.dispatch.DensityMapDispatcher;
 import xyz.blanchot.vectorx.dispatch.PackedBitsDispatcher;
@@ -54,6 +55,11 @@ public class VectorXFzzyConfig extends Config {
     @RequiresAction(action = Action.RESTART)
     public ValidatedEnum<KernelMode> packedStorageUnpack =
             new ValidatedEnum<>(KernelMode.AUTO, ValidatedEnum.WidgetType.POPUP);
+    @Comment("Backend for CanyonWorldCarver's ellipsoid skip test during cave/canyon "
+            + "generation. Same auto/scalar/off semantics as densityFunctionMap.")
+    @RequiresAction(action = Action.RESTART)
+    public ValidatedEnum<KernelMode> canyonCarverSkip =
+            new ValidatedEnum<>(KernelMode.AUTO, ValidatedEnum.WidgetType.POPUP);
     @Comment("Run the scalar-vs-vector differential self-test at startup before trusting a "
             + "kernel's vector backend. Leave this on unless you have a specific reason not to.")
     @RequiresAction(action = Action.RESTART)
@@ -71,6 +77,7 @@ public class VectorXFzzyConfig extends Config {
         modes.put(DensityMapDispatcher.CONFIG_KEY, densityFunctionMap.get());
         modes.put(ClampDispatcher.CONFIG_KEY, densityFunctionClamp.get());
         modes.put(PackedBitsDispatcher.CONFIG_KEY, packedStorageUnpack.get());
+        modes.put(CarverSkipDispatcher.CONFIG_KEY, canyonCarverSkip.get());
         return VectorXConfig.of(backendForcedScalar.get(), selfTest.get(), diagnostics.get(), modes);
     }
 }

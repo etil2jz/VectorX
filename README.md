@@ -30,7 +30,7 @@ at runtime. **Vanilla behaviour is the floor, never the risk.**
 
 ## Features
 
-VectorX ships **three kernels**, each independently toggleable and independently resolved at
+VectorX ships **four kernels**, each independently toggleable and independently resolved at
 startup:
 
 | Kernel                 | Vanilla target                           | What it does                                                                                                                                                                                                                                                                                                |
@@ -38,6 +38,7 @@ startup:
 | `densityFunctionMap`   | `DensityFunctions$Mapped`                | Vectorizes the element-wise transforms used during noise/terrain generation. Only `half_negative`, `quarter_negative` and `squeeze` are routed to SIMD — the remaining ops (`abs`, `square`, `cube`, `invert`) are already branch-free and measured no real gain, so they are deliberately left on vanilla. |
 | `densityFunctionClamp` | `DensityFunctions$Clamp`                 | Vectorizes the clamp applied over a whole density array, using lane-wise `min`/`max` instead of a per-element branch.                                                                                                                                                                                       |
 | `packedStorageUnpack`  | `SimpleBitStorage` / `PalettedContainer` | Vectorizes both directions of palette bit-packing — `long[]` → `int[]` unpacking and `int[]` → `long[]` packing — hit on every chunk save and every chunk load. Also covers `SimpleBitStorage.getAll(IntConsumer)`, reached from `PalettedContainer.count()` (the block/fluid count recompute done for every chunk section on chunk load) and `PalettedContainer.getAll(Consumer)` (e.g. the biome-decoration possible-biomes scan), by unpacking through the same kernel into a scratch array and dispatching from it in order.                                                                                                                                             |
+| `canyonCarverSkip`     | `CanyonWorldCarver` (via `WorldCarver`)  | Vectorizes the inner `worldY` sweep of `WorldCarver.carveEllipsoid`'s ellipsoid-membership test, for canyon carving only — bulk-computes the `>= 1.0` skip decision for a whole vertical column instead of one `shouldSkip` call per block. `CaveWorldCarver` is deliberately not covered (its skip test closes over `floorLevel`, an RNG-derived local from two call frames up that can't be reached without either fragile reflection or reimplementing the RNG-heavy tunnel loop, which risks silently desyncing generated terrain from vanilla for a given seed — a correctness bug the fail-open below can't catch, since it wouldn't throw). The surrounding bounds/traversal logic is a faithful reimplementation of `carveEllipsoid` itself, kept in a plain, Mixin-free class (`CanyonCarveGeometry`) so it can be differentially tested against an independent transliteration of the real method, in-process, without a running game.                                                                                                                                             |
 
 Both `DensityFunctions$Mapped` and `DensityFunctions$Clamp` inherit `fillArray` from
 `PureTransformer` without overriding it, so VectorX supplies the override rather than replacing
@@ -99,10 +100,10 @@ Add it to your JVM arguments (launcher profile, `user_jvm_args.txt`, or your ser
 scalar backend and gives you no speedup at all.** The startup log tells you which one you got:
 
 ```
-[vectorx] VectorX ready: 3/3 kernels on the vector backend
+[vectorx] VectorX ready: 4/4 kernels on the vector backend
 ```
 
-If that line says `0/3`, the flag is missing. Enable `diagnostics` in the config for the full
+If that line says `0/4`, the flag is missing. Enable `diagnostics` in the config for the full
 report, including the exact reason each kernel fell back and the vector width actually selected.
 
 ## Configuration
@@ -117,6 +118,7 @@ under `config/`, or open the settings screen in-game via
 | `densityFunctionMap`   | `auto`  | `auto` = vector if it loads and passes its self-test, scalar otherwise · `scalar` = force scalar · `off` = disable the hook entirely. |
 | `densityFunctionClamp` | `auto`  | Same `auto` / `scalar` / `off` semantics.                                                                                             |
 | `packedStorageUnpack`  | `auto`  | Same `auto` / `scalar` / `off` semantics.                                                                                             |
+| `canyonCarverSkip`     | `auto`  | Same `auto` / `scalar` / `off` semantics.                                                                                             |
 | `selfTest`             | `true`  | Runs the scalar-vs-vector differential check at startup before trusting a vector backend. Leave this on.                              |
 | `diagnostics`          | `false` | Logs a full startup report: module resolution, per-kernel backend, fallback reason, vector species, and known mod interactions.       |
 
@@ -139,7 +141,7 @@ zero-config kill switch when you can't reach the config file (e.g. on a hosted s
 
 | Mod                                        | Status                                                                                                                                                                                                                                                              |
 |--------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Lithium**                                | Compatible. Lithium `@Overwrite`s `PalettedContainer.pack()` with a fused implementation that never calls `SimpleBitStorage.unpack()`, so VectorX's hook is simply **inert** there — not broken. The chunk-*load* path is untouched by Lithium and always benefits. Lithium's `mixin.util.block_tracking` (on by default) only `@ModifyArg`/`@Inject`s the `CountConsumer` passed into `PalettedContainer.count()` and its own `accept()` callback — it never touches `SimpleBitStorage`, so VectorX's `getAll` hook has no conflict either. |
+| **Lithium**                                | Compatible. Lithium `@Overwrite`s `PalettedContainer.pack()` with a fused implementation that never calls `SimpleBitStorage.unpack()`, so VectorX's hook is simply **inert** there — not broken. The chunk-*load* path is untouched by Lithium and always benefits. Lithium's `mixin.util.block_tracking` (on by default) only `@ModifyArg`/`@Inject`s the `CountConsumer` passed into `PalettedContainer.count()` and its own `accept()` callback — it never touches `SimpleBitStorage`, so VectorX's `getAll` hook has no conflict either. Lithium's mixin source tree also contains no path or class touching `WorldCarver`/`CanyonWorldCarver` — it doesn't modify world carving at all, so `canyonCarverSkip` has no conflict. |
 | **Sodium / Iris / rendering mods**         | Unaffected — VectorX touches no rendering code.                                                                                                                                                                                                                     |
 | **FerriteCore, Krypton, ModernFix, C2ME…** | No known interaction.                                                                                                                                                                                                                                               |
 
