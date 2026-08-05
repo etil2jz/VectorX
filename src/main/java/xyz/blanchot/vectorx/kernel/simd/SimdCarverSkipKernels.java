@@ -45,8 +45,8 @@ public final class SimdCarverSkipKernels implements CarverSkipKernels, SelfDescr
 
     @Override
     public void canyonSkipMask(double horizSum, double y, double verticalRadius,
-                                float[] widthFactorPerHeight, int minGenY,
-                                int minY, int maxY, boolean[] output) {
+                               float[] widthFactorPerHeight, int minGenY,
+                               int minY, int maxY, boolean[] output) {
         Objects.requireNonNull(widthFactorPerHeight, "widthFactorPerHeight");
         Objects.requireNonNull(output, "output");
         int n = maxY - minY;
@@ -63,7 +63,7 @@ public final class SimdCarverSkipKernels implements CarverSkipKernels, SelfDescr
         int i = 0;
         for (; i < bound; i += lanes) {
             int worldYBase = minY + 1 + i;
-            DoubleVector worldYVec = LANE_OFFSETS.add((double) worldYBase);
+            DoubleVector worldYVec = LANE_OFFSETS.add(worldYBase);
             // Must match the scalar reference's (worldY - 0.5 - y) step order
             // exactly -- collapsing to a precomputed (0.5 + y) offset rounds
             // differently for many y values, silently flipping the >= 1.0

@@ -15,7 +15,7 @@ import java.util.Random;
  * kernel's result feeds a {@code >= 1.0} threshold comparison, and vector
  * vs. scalar rounding could in principle diverge by a single ULP right at
  * that boundary even when both use true division (see
- * {@code SimdCarverSkipKernels}'s javadoc) -- this specifically hunts for
+ * {@code SimdCarverSkipKernels}'s Javadoc) -- this specifically hunts for
  * that by constructing inputs that land very close to the threshold.
  */
 public final class CarverSkipSelfTest {
@@ -69,7 +69,6 @@ public final class CarverSkipSelfTest {
         int minGenY = 0;
         int minY = 0;
         int n = 40;
-        int maxY = n;
         double horizSum = 0.5;
         double verticalRadius = 10.0;
         // Deliberately non-round: y=0.0 would make (worldY - 0.5 - y) and
@@ -78,8 +77,8 @@ public final class CarverSkipSelfTest {
         // test exists to catch (see SimdCarverSkipKernels's yd computation).
         double y = 64.37;
 
-        float[] widthFactorPerHeight = new float[maxY - minGenY + 1];
-        for (int worldY = minY + 1; worldY <= maxY; worldY++) {
+        float[] widthFactorPerHeight = new float[n - minGenY + 1];
+        for (int worldY = minY + 1; worldY <= n; worldY++) {
             double yd = (worldY - 0.5 - y) / verticalRadius;
             double target = 1.0 - yd * yd / 6.0;
             // Choose widthFactorPerHeight so horizSum*wfp + yd*yd/6.0 lands
@@ -88,13 +87,13 @@ public final class CarverSkipSelfTest {
             widthFactorPerHeight[worldY - minGenY - 1] = (float) ((target + nudge) / horizSum);
         }
 
-        compare(n, minGenY, minY, maxY, horizSum, y, verticalRadius, widthFactorPerHeight, scalar, vector,
+        compare(n, minGenY, minY, n, horizSum, y, verticalRadius, widthFactorPerHeight, scalar, vector,
                 "boundary");
     }
 
     private static void compare(int n, int minGenY, int minY, int maxY, double horizSum, double y,
-                                 double verticalRadius, float[] widthFactorPerHeight,
-                                 CarverSkipKernels scalar, CarverSkipKernels vector, String label) {
+                                double verticalRadius, float[] widthFactorPerHeight,
+                                CarverSkipKernels scalar, CarverSkipKernels vector, String label) {
         boolean[] scalarOut = new boolean[Math.max(n, 1)];
         boolean[] vectorOut = new boolean[Math.max(n, 1)];
         scalar.canyonSkipMask(horizSum, y, verticalRadius, widthFactorPerHeight, minGenY, minY, maxY, scalarOut);

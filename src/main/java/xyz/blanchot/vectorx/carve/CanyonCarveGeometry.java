@@ -34,11 +34,6 @@ public final class CanyonCarveGeometry {
     private CanyonCarveGeometry() {
     }
 
-    @FunctionalInterface
-    public interface CarveSink {
-        void carve(int xIndex, int worldY, int zIndex);
-    }
-
     public static boolean sweepVectorized(
             ChunkPos chunkPos,
             double x,
@@ -168,8 +163,13 @@ public final class CanyonCarveGeometry {
      * {@code CanyonWorldCarver.shouldSkip(CarvingContext, float[], double, double, double, int)}.
      */
     private static boolean referenceShouldSkip(float[] widthFactorPerHeight, int minGenY,
-                                                double xd, double yd, double zd, int worldY) {
+                                               double xd, double yd, double zd, int worldY) {
         int yIndex = worldY - minGenY;
         return (xd * xd + zd * zd) * widthFactorPerHeight[yIndex - 1] + yd * yd / 6.0 >= 1.0;
+    }
+
+    @FunctionalInterface
+    public interface CarveSink {
+        void carve(int xIndex, int worldY, int zIndex);
     }
 }

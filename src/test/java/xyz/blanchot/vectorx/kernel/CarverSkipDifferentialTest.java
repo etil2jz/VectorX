@@ -28,6 +28,12 @@ class CarverSkipDifferentialTest {
 
     private static final int[] Y_LENGTHS = {0, 1, 2, 3, 7, 8, 9, 15, 16, 17, 25, 31, 32, 40, 63, 64, 65};
 
+    private static boolean[] trim(boolean[] array, int n) {
+        boolean[] result = new boolean[n];
+        System.arraycopy(array, 0, result, 0, n);
+        return result;
+    }
+
     @ParameterizedTest
     @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})
     void scalarAndVectorAgreeAcrossRandomInputs(int seedOffset) {
@@ -107,13 +113,12 @@ class CarverSkipDifferentialTest {
         int minGenY = 0;
         int minY = 0;
         int n = 40;
-        int maxY = n;
         double horizSum = 0.5;
         double verticalRadius = 10.0;
         double y = 64.37;
 
-        float[] widthFactorPerHeight = new float[maxY - minGenY + 1];
-        for (int worldY = minY + 1; worldY <= maxY; worldY++) {
+        float[] widthFactorPerHeight = new float[n - minGenY + 1];
+        for (int worldY = minY + 1; worldY <= n; worldY++) {
             double yd = (worldY - 0.5 - y) / verticalRadius;
             double target = 1.0 - yd * yd / 6.0;
             double nudge = (worldY % 2 == 0 ? 1 : -1) * 4.0 * Math.ulp(1.0);
@@ -122,8 +127,8 @@ class CarverSkipDifferentialTest {
 
         boolean[] scalarOut = new boolean[n];
         boolean[] vectorOut = new boolean[n];
-        SCALAR.canyonSkipMask(horizSum, y, verticalRadius, widthFactorPerHeight, minGenY, minY, maxY, scalarOut);
-        VECTOR.canyonSkipMask(horizSum, y, verticalRadius, widthFactorPerHeight, minGenY, minY, maxY, vectorOut);
+        SCALAR.canyonSkipMask(horizSum, y, verticalRadius, widthFactorPerHeight, minGenY, minY, n, scalarOut);
+        VECTOR.canyonSkipMask(horizSum, y, verticalRadius, widthFactorPerHeight, minGenY, minY, n, vectorOut);
 
         assertArrayEquals(scalarOut, vectorOut);
     }
@@ -160,11 +165,5 @@ class CarverSkipDifferentialTest {
                 () -> SCALAR.canyonSkipMask(0.5, 64.0, 5.0, widthFactorPerHeight, 0, 60, 65, null));
         assertThrows(NullPointerException.class,
                 () -> VECTOR.canyonSkipMask(0.5, 64.0, 5.0, widthFactorPerHeight, 0, 60, 65, null));
-    }
-
-    private static boolean[] trim(boolean[] array, int n) {
-        boolean[] result = new boolean[n];
-        System.arraycopy(array, 0, result, 0, n);
-        return result;
     }
 }

@@ -1,16 +1,16 @@
 {
-	"required": false,
-	"package": "xyz.blanchot.vectorx.mixin",
-	"compatibilityLevel": "JAVA_25",
-	"mixins": [
-		"DensityFunctionsMappedMixin",
-		"DensityFunctionsClampMixin",
-		"SimpleBitStorageMixin",
-		"PalettedContainerMixin",
-		"CanyonWorldCarverMixin",
-		"WorldCarverAccessor"
-	],
-	"injectors": {
-		"defaultRequire": 0
-	}
+  "required": false,
+  "package": "xyz.blanchot.vectorx.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "CanyonWorldCarverMixin",
+    "DensityFunctionsClampMixin",
+    "DensityFunctionsMappedMixin",
+    "PalettedContainerMixin",
+    "SimpleBitStorageMixin",
+    "WorldCarverAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
 }

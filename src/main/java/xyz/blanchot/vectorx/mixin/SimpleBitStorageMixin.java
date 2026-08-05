@@ -27,7 +27,7 @@ import java.util.function.IntConsumer;
  * <p>{@code getAll} unpacks into a scratch {@code int[]} with the same
  * kernel {@code unpack} uses, then dispatches to the consumer from that
  * array in order -- same values, same call order as Mojang's inline
- * mask/shift loop, so behaviour is unchanged for whatever the consumer
+ * mask/shift loop, so behavior is unchanged for whatever the consumer
  * does with them. No separate self-test is needed: correctness rides on
  * the same differential test that already covers {@code unpack}.
  *

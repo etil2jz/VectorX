@@ -70,6 +70,47 @@ import java.util.function.Function;
 @Mixin(CanyonWorldCarver.class)
 public abstract class CanyonWorldCarverMixin {
 
+    @Unique
+    private static boolean vectorx$vectorizedCarveEllipsoid(
+            CanyonWorldCarver instance,
+            CarvingContext context,
+            CarverConfiguration configuration,
+            ChunkAccess chunk,
+            Function<BlockPos, Holder<Biome>> biomeGetter,
+            Aquifer aquifer,
+            double x,
+            double y,
+            double z,
+            double horizontalRadius,
+            double verticalRadius,
+            CarvingMask mask,
+            float[] widthFactorPerHeight
+    ) {
+        ChunkPos chunkPos = chunk.getPos();
+        boolean debugEnabled = SharedConstants.DEBUG_CARVERS || configuration.debugSettings.isDebugMode();
+        BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
+        BlockPos.MutableBlockPos helperPos = new BlockPos.MutableBlockPos();
+        MutableBoolean hasGrass = new MutableBoolean(false);
+        // sink calls are strictly ordered by (xIndex, zIndex, descending worldY), same as
+        // vanilla's loop nesting, so a column change is detectable from consecutive calls;
+        // vanilla resets hasGrass at the top of every z-loop iteration, before its worldY loop.
+        int[] lastColumn = {Integer.MIN_VALUE, Integer.MIN_VALUE};
+
+        return CanyonCarveGeometry.sweepVectorized(chunkPos, x, y, z, horizontalRadius, verticalRadius,
+                context.getMinGenY(), context.getGenDepth(), chunk.isUpgrading(), debugEnabled,
+                widthFactorPerHeight, VectorX.carverSkip(), mask,
+                (xIndex, worldY, zIndex) -> {
+                    if (lastColumn[0] != xIndex || lastColumn[1] != zIndex) {
+                        hasGrass.setFalse();
+                        lastColumn[0] = xIndex;
+                        lastColumn[1] = zIndex;
+                    }
+                    blockPos.set(chunkPos.getBlockX(xIndex), worldY, chunkPos.getBlockZ(zIndex));
+                    ((WorldCarverAccessor) instance).vectorx$invokeCarveBlock(context, configuration,
+                            chunk, biomeGetter, mask, blockPos, helperPos, aquifer, hasGrass);
+                });
+    }
+
     @Redirect(
             method = "doCarve",
             at = @At(
@@ -112,46 +153,5 @@ public abstract class CanyonWorldCarverMixin {
             return ((WorldCarverAccessor) instance).vectorx$invokeCarveEllipsoid(context, configuration, chunk,
                     biomeGetter, aquifer, x, y, z, horizontalRadius, verticalRadius, mask, skipChecker);
         }
-    }
-
-    @Unique
-    private static boolean vectorx$vectorizedCarveEllipsoid(
-            CanyonWorldCarver instance,
-            CarvingContext context,
-            CarverConfiguration configuration,
-            ChunkAccess chunk,
-            Function<BlockPos, Holder<Biome>> biomeGetter,
-            Aquifer aquifer,
-            double x,
-            double y,
-            double z,
-            double horizontalRadius,
-            double verticalRadius,
-            CarvingMask mask,
-            float[] widthFactorPerHeight
-    ) {
-        ChunkPos chunkPos = chunk.getPos();
-        boolean debugEnabled = SharedConstants.DEBUG_CARVERS || configuration.debugSettings.isDebugMode();
-        BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
-        BlockPos.MutableBlockPos helperPos = new BlockPos.MutableBlockPos();
-        MutableBoolean hasGrass = new MutableBoolean(false);
-        // sink calls are strictly ordered by (xIndex, zIndex, descending worldY), same as
-        // vanilla's loop nesting, so a column change is detectable from consecutive calls;
-        // vanilla resets hasGrass at the top of every z-loop iteration, before its worldY loop.
-        int[] lastColumn = {Integer.MIN_VALUE, Integer.MIN_VALUE};
-
-        return CanyonCarveGeometry.sweepVectorized(chunkPos, x, y, z, horizontalRadius, verticalRadius,
-                context.getMinGenY(), context.getGenDepth(), chunk.isUpgrading(), debugEnabled,
-                widthFactorPerHeight, VectorX.carverSkip(), mask,
-                (xIndex, worldY, zIndex) -> {
-                    if (lastColumn[0] != xIndex || lastColumn[1] != zIndex) {
-                        hasGrass.setFalse();
-                        lastColumn[0] = xIndex;
-                        lastColumn[1] = zIndex;
-                    }
-                    blockPos.set(chunkPos.getBlockX(xIndex), worldY, chunkPos.getBlockZ(zIndex));
-                    ((WorldCarverAccessor) instance).vectorx$invokeCarveBlock(context, configuration,
-                            chunk, biomeGetter, mask, blockPos, helperPos, aquifer, hasGrass);
-                });
     }
 }

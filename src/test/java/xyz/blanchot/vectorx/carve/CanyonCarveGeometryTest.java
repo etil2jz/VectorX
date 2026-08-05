@@ -39,14 +39,6 @@ class CanyonCarveGeometryTest {
     private static final CarverSkipKernels SCALAR = ScalarCarverSkipKernels.INSTANCE;
     private static final CarverSkipKernels VECTOR = SimdCarverSkipKernels.INSTANCE;
 
-    private record Scenario(
-            ChunkPos chunkPos, double x, double y, double z,
-            double horizontalRadius, double verticalRadius,
-            int minGenY, int genDepth, boolean isUpgrading, boolean debugEnabled,
-            float[] widthFactorPerHeight, List<int[]> preExistingMaskBits
-    ) {
-    }
-
     private static Scenario randomScenario(Random random) {
         int minGenY = -64;
         int genDepth = 384;
@@ -198,5 +190,13 @@ class CanyonCarveGeometryTest {
         assertSamePositions(firstPass, reDebugReference, "debug re-carve (reference)");
         assertSamePositions(firstPass, reDebugVectorScalar, "debug re-carve (vectorized scalar)");
         assertSamePositions(firstPass, reDebugVectorVector, "debug re-carve (vectorized vector)");
+    }
+
+    private record Scenario(
+            ChunkPos chunkPos, double x, double y, double z,
+            double horizontalRadius, double verticalRadius,
+            int minGenY, int genDepth, boolean isUpgrading, boolean debugEnabled,
+            float[] widthFactorPerHeight, List<int[]> preExistingMaskBits
+    ) {
     }
 }

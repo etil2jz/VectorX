@@ -2,8 +2,8 @@ package xyz.blanchot.vectorx.bench;
 
 import jdk.incubator.vector.DoubleVector;
 import jdk.incubator.vector.FloatVector;
-import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorMask;
+import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorShape;
 import jdk.incubator.vector.VectorSpecies;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -48,9 +48,12 @@ import java.util.concurrent.TimeUnit;
 @Fork(1)
 public class CarverShouldSkipBenchmark {
 
+    private static final VectorSpecies<Double> DSPECIES = DoubleVector.SPECIES_PREFERRED;
+    private static final VectorSpecies<Float> FSPECIES =
+            VectorSpecies.of(float.class, VectorShape.forBitSize(DSPECIES.length() * Float.SIZE));
+    private static final DoubleVector LANE_OFFSETS = laneOffsets();
     @Param({"6", "10", "16", "20", "25"})
     public int yLength;
-
     private double xd;
     private double zd;
     private double verticalRadius;
@@ -60,10 +63,13 @@ public class CarverShouldSkipBenchmark {
     private float[] widthFactorPerHeight;
     private boolean[] skipOut;
 
-    private static final VectorSpecies<Double> DSPECIES = DoubleVector.SPECIES_PREFERRED;
-    private static final VectorSpecies<Float> FSPECIES =
-            VectorSpecies.of(float.class, VectorShape.forBitSize(DSPECIES.length() * Float.SIZE));
-    private static final DoubleVector LANE_OFFSETS = laneOffsets();
+    private static DoubleVector laneOffsets() {
+        double[] offsets = new double[DSPECIES.length()];
+        for (int lane = 0; lane < offsets.length; lane++) {
+            offsets[lane] = lane;
+        }
+        return DoubleVector.fromArray(DSPECIES, offsets, 0);
+    }
 
     @Setup(Level.Trial)
     public void setup() {
@@ -129,7 +135,7 @@ public class CarverShouldSkipBenchmark {
         int i = 0;
         for (; i < bound; i += lanes) {
             int worldYBase = minY + 1 + i;
-            DoubleVector worldYVec = LANE_OFFSETS.add((double) worldYBase);
+            DoubleVector worldYVec = LANE_OFFSETS.add(worldYBase);
             DoubleVector ydVec = worldYVec.sub(0.5).sub(y).div(verticalRadius);
 
             FloatVector wfpVec = FloatVector.fromArray(FSPECIES, widthFactorPerHeight, worldYBase - 1);
@@ -147,13 +153,5 @@ public class CarverShouldSkipBenchmark {
             skipOut[i] = horizSum * widthFactorPerHeight[worldY - 1] + yd * yd / 6.0 >= 1.0;
         }
         return skipOut;
-    }
-
-    private static DoubleVector laneOffsets() {
-        double[] offsets = new double[DSPECIES.length()];
-        for (int lane = 0; lane < offsets.length; lane++) {
-            offsets[lane] = lane;
-        }
-        return DoubleVector.fromArray(DSPECIES, offsets, 0);
     }
 }

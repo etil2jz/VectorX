@@ -74,7 +74,9 @@ public class PackedBitsGetAllBenchmark {
         vectorBackend = SimdPackedBitsKernels.INSTANCE;
     }
 
-    /** Verbatim algorithm from {@code SimpleBitStorage.getAll(IntConsumer)}. */
+    /**
+     * Verbatim algorithm from {@code SimpleBitStorage.getAll(IntConsumer)}.
+     */
     private void vanillaGetAll(IntConsumer output) {
         long mask = (1L << bits) - 1L;
         int valuesPerLong = 64 / bits;

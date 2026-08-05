@@ -21,8 +21,8 @@ public final class ScalarCarverSkipKernels implements CarverSkipKernels, SelfDes
 
     @Override
     public void canyonSkipMask(double horizSum, double y, double verticalRadius,
-                                float[] widthFactorPerHeight, int minGenY,
-                                int minY, int maxY, boolean[] output) {
+                               float[] widthFactorPerHeight, int minGenY,
+                               int minY, int maxY, boolean[] output) {
         Objects.requireNonNull(widthFactorPerHeight, "widthFactorPerHeight");
         Objects.requireNonNull(output, "output");
         int n = maxY - minY;

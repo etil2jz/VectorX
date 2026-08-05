@@ -1,35 +1,35 @@
 {
-	"schemaVersion": 1,
-	"id": "vectorx",
-	"version": "${version}",
-	"name": "VectorX",
-	"description": "Conservative optimizations using the Java Vector API to vectorize specific Minecraft hot paths, with a mandatory scalar fallback.",
-	"authors": [
-		"etil2jz"
-	],
-	"license": "LGPL-3.0-only",
-	"icon": "assets/vectorx/icon.png",
-	"contact": {
-		"sources": "https://github.com/etil2jz/VectorX",
-		"issues": "https://github.com/etil2jz/VectorX/issues"
-	},
-	"environment": "*",
-	"entrypoints": {
-		"main": [
-			"xyz.blanchot.vectorx.VectorX"
-		],
-		"client": [
-			"xyz.blanchot.vectorx.client.VectorXClient"
-		]
-	},
-	"mixins": [
-		"vectorx.mixins.json"
-	],
-	"depends": {
-		"fabricloader": ">=0.19.3",
-		"minecraft": "~26.2",
-		"java": ">=25",
-		"fzzy_config": ">=0.7.6",
-		"fabric-language-kotlin": ">=1.13.13"
-	}
+  "schemaVersion": 1,
+  "id": "vectorx",
+  "version": "${version}",
+  "name": "VectorX",
+  "description": "Conservative optimizations using the Java Vector API to vectorize specific Minecraft hot paths, with a mandatory scalar fallback.",
+  "authors": [
+    "etil2jz"
+  ],
+  "license": "LGPL-3.0-only",
+  "icon": "assets/vectorx/icon.png",
+  "contact": {
+    "sources": "https://github.com/etil2jz/VectorX",
+    "issues": "https://github.com/etil2jz/VectorX/issues"
+  },
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "xyz.blanchot.vectorx.VectorX"
+    ],
+    "client": [
+      "xyz.blanchot.vectorx.client.VectorXClient"
+    ]
+  },
+  "mixins": [
+    "vectorx.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fzzy_config": ">=0.7.6",
+    "fabric-language-kotlin": ">=1.13.13"
+  }
 }
