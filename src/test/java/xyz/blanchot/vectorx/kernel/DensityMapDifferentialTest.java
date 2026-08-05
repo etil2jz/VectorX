@@ -171,6 +171,32 @@ class DensityMapDifferentialTest {
         }
     }
 
+    /**
+     * {@code SQUEEZE}'s scalar reference divides by 24.0; a vector backend
+     * that instead multiplies by a precomputed {@code 1.0 / 24.0} rounds
+     * differently for roughly 0.7% of interior (unclamped) inputs -- rare
+     * enough that {@link #interestingValues()}'s 500 random samples (mostly
+     * outside [-1, 1], where clamping saturates the value and hides the
+     * discrepancy) can miss it by chance. This sweeps 20,000 evenly spaced
+     * points densely covering the interior range specifically so this class
+     * of regression can't hide statistically.
+     */
+    @Test
+    void squeezeAgreesWithScalarAcrossDenseInteriorSweep() {
+        int n = 20_000;
+        double[] values = new double[n];
+        for (int i = 0; i < n; i++) {
+            values[i] = -1.0 + 2.0 * i / (n - 1);
+        }
+
+        double[] scalarOut = values.clone();
+        double[] vectorOut = values.clone();
+        SCALAR.apply(scalarOut, DensityMapOp.SQUEEZE);
+        VECTOR.apply(vectorOut, DensityMapOp.SQUEEZE);
+
+        assertArrayEquals(scalarOut, vectorOut, "SQUEEZE scalar/vector mismatch across dense interior sweep");
+    }
+
     @Test
     void emptyArrayIsANoOpOnBothBackends() {
         for (DensityMapOp op : DensityMapOp.values()) {

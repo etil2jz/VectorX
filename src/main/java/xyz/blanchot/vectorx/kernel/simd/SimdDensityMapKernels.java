@@ -40,7 +40,11 @@ public final class SimdDensityMapKernels implements DensityMapKernels, SelfDescr
             case SQUEEZE -> {
                 DoubleVector clamped = v.min(1.0).blend(-1.0, v.compare(VectorOperators.LT, -1.0));
                 DoubleVector cube = clamped.mul(clamped).mul(clamped);
-                yield clamped.mul(0.5).sub(cube.mul(1.0 / 24.0));
+                // True div, not a precomputed 1.0/24.0 reciprocal multiply: the two
+                // round differently for ~0.7% of inputs (verified empirically), which
+                // silently broke bit-exactness with the scalar reference -- the same
+                // class of bug as SimdCarverSkipKernels's yd computation.
+                yield clamped.mul(0.5).sub(cube.div(24.0));
             }
         };
     }

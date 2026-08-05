@@ -1,20 +1,17 @@
 # Real-server benchmark
 
-JMH numbers measure an isolated kernel on synthetic data. This is a
-separate, real measurement: an actual dedicated server, real Mixins, real
-world generation.
+JMH numbers measure an isolated kernel on synthetic data. This is a separate, real measurement: an actual dedicated
+server, real Mixins, real world generation.
 
 ## Setup
 
 - CPU: AMD Ryzen 7 9800X3D (Zen 5)
 - JDK: Temurin 25.0.4
-- `./gradlew runServer`, fresh world, fixed seed, RCON `forceload add` to
-  force generation of 1024 real chunks (4 tiles of 256, chunk-aligned),
-  same coordinates for both runs
+- `./gradlew runServer`, fresh world, fixed seed, RCON `forceload add` to force generation of 1024 real chunks (4 tiles
+  of 256, chunk-aligned), same coordinates for both runs
 - Metric: CPU-seconds consumed by the server process (Windows
-  `Process.CPU`) from the moment the chunks were requested until it
-  plateaus (generation done, confirmed by querying loaded blocks in the
-  area via RCON)
+  `Process.CPU`) from the moment the chunks were requested until it plateaus (generation done, confirmed by querying
+  loaded blocks in the area via RCON)
 
 ## Vector width actually selected
 
@@ -36,13 +33,11 @@ kernel packedStorageUnpack:  vector [int=Species[int, 16, S_512_BIT], ...]
 **~1.33x faster, ~25% less CPU time**, for identical real world generation.
 
 Smaller-scale test (spawn-area prep only, ~121 chunks, 3 runs each side)
-showed no clear difference — too short and too dominated by JVM
-startup/JIT to isolate the gain. The 1024-chunk test above is the one
-that's large enough to see it.
+showed no clear difference — too short and too dominated by JVM startup/JIT to isolate the gain. The 1024-chunk test
+above is the one that's large enough to see it.
 
 ## Why 25%, not the 5-12x from JMH
 
-Real chunk generation spends most of its CPU time on noise sampling,
-feature/structure placement, and biome computation -- none of which this
-mod vectorizes. The 25% is the vectorized kernels' actual share of that
-total cost, measured in place, not extrapolated from the isolated numbers.
+Real chunk generation spends most of its CPU time on noise sampling, feature/structure placement, and biome
+computation -- none of which this mod vectorizes. The 25% is the vectorized kernels' actual share of that total cost,
+measured in place, not extrapolated from the isolated numbers.

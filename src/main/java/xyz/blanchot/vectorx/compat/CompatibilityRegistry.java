@@ -27,6 +27,14 @@ public final class CompatibilityRegistry {
         // inert (not broken) when Lithium is loaded; the chunk-load path is
         // untouched by Lithium and always benefits either way.
         knownConflicts.put("lithium", "packedStorageUnpack");
+
+        // Verified against Lithium's full mixin source tree (CaffeineMC/lithium,
+        // develop branch): no mixin path or class touches WorldCarver,
+        // CanyonWorldCarver, or carveEllipsoid/carveBlock/shouldSkip -- Lithium
+        // doesn't modify world carving at all. No entry needed for
+        // canyonCarverSkip; kept here as a note, not a map entry, since this
+        // registry only records verified conflicts/inertness, not clean bills
+        // of health.
     }
 
     public Optional<String> conflictingKernel(String modId) {

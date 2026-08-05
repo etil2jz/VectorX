@@ -9,7 +9,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import xyz.blanchot.vectorx.kernel.scalar.ScalarPackedBitsKernels;
 import xyz.blanchot.vectorx.kernel.simd.SimdPackedBitsKernels;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
@@ -186,6 +188,38 @@ class PackedBitsDifferentialTest {
                     () -> "vector mismatch at chunk boundary, bits=" + bits + " size=" + size + " chunkSize=" + chunkSize);
             assertArrayEquals(expected, scalarOut,
                     () -> "scalar mismatch at chunk boundary, bits=" + bits + " size=" + size);
+        }
+    }
+
+    /**
+     * {@code SimpleBitStorageMixin.vectorx$getAll} reuses the {@code unpack}
+     * kernel and then dispatches to the consumer from that array in index
+     * order, on the assumption that real {@code SimpleBitStorage.getAll}
+     * calls its consumer in exactly that order. This locks that assumption
+     * down against the real, unmodified class, independent of the Mixin
+     * (which JUnit's plain classpath never applies).
+     */
+    @ParameterizedTest
+    @ValueSource(ints = {1, 4, 5, 8, 15, 16, 32})
+    void getAllCallOrderMatchesUnpackArrayOrder(int bits) {
+        Random random = new Random(bits * 3_000_017L + 13);
+        for (int size : SIZES) {
+            long mask = (1L << bits) - 1L;
+            int[] source = new int[size];
+            for (int i = 0; i < size; i++) {
+                source[i] = random.nextInt((int) Math.min(mask + 1, Integer.MAX_VALUE));
+            }
+
+            SimpleBitStorage reference = new SimpleBitStorage(bits, size, source);
+
+            int[] unpacked = new int[size];
+            VECTOR.unpack(reference.getRaw(), bits, size, unpacked);
+
+            List<Integer> viaGetAll = new ArrayList<>(size);
+            reference.getAll(viaGetAll::add);
+
+            assertArrayEquals(unpacked, viaGetAll.stream().mapToInt(Integer::intValue).toArray(),
+                    () -> "getAll() call order diverges from unpack() array order, bits=" + bits + " size=" + size);
         }
     }
 
