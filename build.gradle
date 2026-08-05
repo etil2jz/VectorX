@@ -1,174 +1,158 @@
 plugins {
-	id 'net.fabricmc.fabric-loom' version "${loom_version}"
-	id 'maven-publish'
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+    id 'maven-publish'
 }
 
 version = project.mod_version
 group = project.maven_group
 
 repositories {
-	// Add repositories to retrieve artifacts from in here.
-	// You should only use this when depending on other mods because
-	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
-	// for more information about repositories.
-	mavenCentral()
-	maven {
-		name = "FzzyMaven"
-		url = "https://maven.fzzyhmstrs.me/"
-	}
-	maven {
-		// ModMenu, dev-only: verifies the config GUI actually registers.
-		name = "Terraformers"
-		url = "https://maven.terraformersmc.com/"
-	}
+    // Add repositories to retrieve artifacts from in here.
+    // You should only use this when depending on other mods because
+    // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
+    // See https://docs.gradle.org/current/userguide/declaring_repositories.html
+    // for more information about repositories.
+    mavenCentral()
+    maven {
+        name = "FzzyMaven"
+        url = "https://maven.fzzyhmstrs.me/"
+    }
+    maven {
+        // ModMenu, dev-only: verifies the config GUI actually registers.
+        name = "Terraformers"
+        url = "https://maven.terraformersmc.com/"
+    }
 }
 
 loom {
-	splitEnvironmentSourceSets()
+    splitEnvironmentSourceSets()
 
-	mods {
-		"vectorx" {
-			sourceSet sourceSets.main
-			sourceSet sourceSets.client
-		}
-	}
+    mods {
+        "vectorx" {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+    }
 
-	runs {
-		client {
-			vmArgs "--add-modules=jdk.incubator.vector"
-		}
-		server {
-			vmArgs "--add-modules=jdk.incubator.vector"
-		}
-	}
+    runs {
+        client {
+            vmArgs "--add-modules=jdk.incubator.vector"
+        }
+        server {
+            vmArgs "--add-modules=jdk.incubator.vector"
+        }
+    }
 }
 
 dependencies {
-	// To change the versions see the gradle.properties file
-	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    // To change the versions see the gradle.properties file
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
-	// fabric-api is intentionally NOT a runtime dependency: this only needs
-	// FabricLoader (mod list), which ships with fabric-loader itself.
-	//
-	// modCompileOnly below is a narrower, compile-time-only exception:
-	// CanyonWorldCarverMixin compiles against net.minecraft.world.level.chunk.
-	// ChunkAccess, whose interface hierarchy in this dev-time jar references
-	// FabricBlockGetter/AttachmentTarget. javac must resolve those to
-	// compile ANY method call on ChunkAccess, even ones with nothing to do
-	// with Fabric API. Not present at runtime, not in fabric.mod.json's
-	// "depends" -- purely so javac can see the full type hierarchy.
-	// Plain compileOnly, not modCompileOnly: this project disables
-	// obfuscation (see the fzzy_config comment above), so Loom never
-	// creates the mod* remap configurations here either.
-	compileOnly "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+    compileOnly "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+    // Loom's dev-workspace Minecraft jar has fabric-api's own mixins already
+    // woven into vanilla classes (a dev-convenience Loom applies whenever
+    // fabric-api is anywhere in the dependency graph, not a production
+    // behavior). That means even vanilla server bootstrap code references
+    // fabric-api types in its bytecode in *this* jar, so the plain JUnit
+    // `test` task's runtimeClasspath -- unlike Loom's own runServer/runClient
+    // tasks, which build their own classpath and don't need this -- needs
+    // fabric-api on it too, or Bootstrap.bootStrap() throws
+    // NoClassDefFoundError trying to load a class like
+    // net.fabricmc.fabric.api.registry.fluid.EntityFluidExtension. Real
+    // production servers run the real, unpatched vanilla jar and never hit
+    // this; it's purely a dev/test-environment artifact.
+    testRuntimeOnly "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
 
-	// Config: Fzzy Config (TOML, validation, GUI, ModMenu integration) and its
-	// mandatory Kotlin runtime. jar-in-jar is prohibited by Fzzy Config's
-	// license (TDL-M), so both are real, user-facing dependencies -- see
-	// fabric.mod.json's "depends" block.
-	//
-	// Plain `implementation`, not `modImplementation`: this project targets
-	// Minecraft 26.2's official, already-deobfuscated jars, so
-	// disableObfuscation() is true and Loom never creates the mod* remap
-	// configurations (verified: LoomConfigurations.run() skips
-	// createRemapConfigurations(mainSourceSet) entirely in that case).
-	implementation "me.fzzyhmstrs:fzzy_config:${fzzy_config_version}"
+    implementation "me.fzzyhmstrs:fzzy_config:${fzzy_config_version}"
 
-	// MixinExtras: only for @Local capture in CanyonWorldCarverMixin.
-	// compileOnly + annotationProcessor, no `include`: fabric-loader
-	// 0.19.3+ already bundles mixinextras-fabric (verified by inspecting
-	// its jar's META-INF/jars/), so bundling our own copy would just be a
-	// redundant duplicate at runtime. Version pinned to match exactly what
-	// that loader version ships to avoid any ABI drift.
-	compileOnly "io.github.llamalad7:mixinextras-fabric:${mixinextras_version}"
-	annotationProcessor "io.github.llamalad7:mixinextras-fabric:${mixinextras_version}"
+    compileOnly "io.github.llamalad7:mixinextras-fabric:${mixinextras_version}"
+    annotationProcessor "io.github.llamalad7:mixinextras-fabric:${mixinextras_version}"
 
-	testImplementation platform("org.junit:junit-bom:${junit_version}")
-	testImplementation "org.junit.jupiter:junit-jupiter"
-	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+    testImplementation platform("org.junit:junit-bom:${junit_version}")
+    testImplementation "org.junit.jupiter:junit-jupiter"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
 
 // --- JMH benchmark source set (manually wired) ---
 sourceSets {
-	jmh {
-		java.srcDir "src/jmh/java"
-		resources.srcDir "src/jmh/resources"
-		compileClasspath += sourceSets.main.output
-		runtimeClasspath += sourceSets.main.output
-	}
+    jmh {
+        java.srcDir "src/jmh/java"
+        resources.srcDir "src/jmh/resources"
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
 }
 
 configurations {
-	jmhImplementation.extendsFrom implementation
-	jmhAnnotationProcessor
+    jmhImplementation.extendsFrom implementation
+    jmhAnnotationProcessor
 }
 
 dependencies {
-	jmhImplementation "org.openjdk.jmh:jmh-core:${jmh_version}"
-	jmhAnnotationProcessor "org.openjdk.jmh:jmh-generator-annprocess:${jmh_version}"
+    jmhImplementation "org.openjdk.jmh:jmh-core:${jmh_version}"
+    jmhAnnotationProcessor "org.openjdk.jmh:jmh-generator-annprocess:${jmh_version}"
 }
 
 tasks.register("jmhRun", JavaExec) {
-	group = "verification"
-	description = "Runs the JMH benchmarks (jdk.incubator.vector required at runtime)."
-	dependsOn tasks.named("jmhClasses")
-	classpath = sourceSets.jmh.runtimeClasspath
-	mainClass.set("org.openjdk.jmh.Main")
-	jvmArgs = ["--add-modules=jdk.incubator.vector"]
+    group = "verification"
+    description = "Runs the JMH benchmarks (jdk.incubator.vector required at runtime)."
+    dependsOn tasks.named("jmhClasses")
+    classpath = sourceSets.jmh.runtimeClasspath
+    mainClass.set("org.openjdk.jmh.Main")
+    jvmArgs = ["--add-modules=jdk.incubator.vector"]
 }
 
 processResources {
-	def version = project.version
-	inputs.property "version", version
+    def version = project.version
+    inputs.property "version", version
 
-	filesMatching("fabric.mod.json") {
-		expand "version": version
-	}
+    filesMatching("fabric.mod.json") {
+        expand "version": version
+    }
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.compilerArgs.addAll(["--add-modules", "jdk.incubator.vector"])
+    it.options.compilerArgs.addAll(["--add-modules", "jdk.incubator.vector"])
 }
 
 tasks.named("test", Test) {
-	useJUnitPlatform()
-	jvmArgs "--add-modules=jdk.incubator.vector"
+    useJUnitPlatform()
+    jvmArgs "--add-modules=jdk.incubator.vector"
 }
 
 java {
-	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
-	// if it is present.
-	// If you remove this line, sources will not be generated.
-	withSourcesJar()
+    // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+    // if it is present.
+    // If you remove this line, sources will not be generated.
+    withSourcesJar()
 
-	sourceCompatibility = JavaVersion.VERSION_25
-	targetCompatibility = JavaVersion.VERSION_25
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
 }
 
 jar {
-	def projectName = project.name
-	inputs.property "projectName", projectName
+    def projectName = project.name
+    inputs.property "projectName", projectName
 
-	from("LICENSE") {
-		rename { "${it}_$projectName"}
-	}
+    from("LICENSE") {
+        rename { "${it}_$projectName" }
+    }
 }
 
 // configure the maven publication
 publishing {
-	publications {
-		create("mavenJava", MavenPublication) {
-			from components.java
-		}
-	}
+    publications {
+        create("mavenJava", MavenPublication) {
+            from components.java
+        }
+    }
 
-	// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
-	repositories {
-		// Add repositories to publish to here.
-		// Notice: This block does NOT have the same function as the block in the top level.
-		// The repositories here will be used for publishing your artifact, not for
-		// retrieving dependencies.
-	}
+    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+    repositories {
+        // Add repositories to publish to here.
+        // Notice: This block does NOT have the same function as the block in the top level.
+        // The repositories here will be used for publishing your artifact, not for
+        // retrieving dependencies.
+    }
 }
