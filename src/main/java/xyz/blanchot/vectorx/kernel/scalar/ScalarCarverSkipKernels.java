@@ -7,8 +7,8 @@ import java.util.Objects;
 
 /**
  * Reference scalar implementation of {@link CarverSkipKernels}. The formula
- * was copied from real Minecraft 26.2's {@code CanyonWorldCarver.shouldSkip
- * (CarvingContext, float[], double, double, double, int)} and the {@code yd}
+ * was copied from real Minecraft 26.3's {@code CanyonWorldCarver.shouldSkip
+ * (WorldGenerationContext, float[], double, double, double, int)} and the {@code yd}
  * computation from the {@code worldY} loop in {@code WorldCarver.carveEllipsoid},
  * not re-derived from memory.
  */

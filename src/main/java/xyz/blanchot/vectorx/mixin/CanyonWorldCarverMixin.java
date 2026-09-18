@@ -1,27 +1,17 @@
 package xyz.blanchot.vectorx.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
-import net.minecraft.SharedConstants;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Holder;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.chunk.CarvingMask;
-import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.levelgen.Aquifer;
+import net.minecraft.world.level.chunk.CarverOutput;
+import net.minecraft.world.level.levelgen.WorldGenerationContext;
 import net.minecraft.world.level.levelgen.carver.CanyonWorldCarver;
-import net.minecraft.world.level.levelgen.carver.CarverConfiguration;
-import net.minecraft.world.level.levelgen.carver.CarvingContext;
 import net.minecraft.world.level.levelgen.carver.WorldCarver;
-import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import xyz.blanchot.vectorx.VectorX;
 import xyz.blanchot.vectorx.carve.CanyonCarveGeometry;
-
-import java.util.function.Function;
 
 /**
  * Vectorizes {@code CanyonWorldCarver}'s ellipsoid skip test -- the inner
@@ -57,58 +47,45 @@ import java.util.function.Function;
  * the sense of replacing its bytecode -- this only redirects the ONE call
  * site inside {@code doCarve}, so the real, unmodified method stays
  * perfectly intact and is exactly what the fallback below calls on any
- * failure. What follows is a faithful reimplementation of that same method
- * body (bounds computation, X/Z/Y triple loop, mask/carveBlock dispatch --
- * all pure geometry, no RNG), with only the Y-loop's skip decision computed
- * in bulk via {@link VectorX#carverSkip()} instead of Mojang's per-element
+ * failure. Since 26.3 made it a {@code public static void} method on the
+ * {@code WorldCarver} interface, that fallback is a plain static call and
+ * the accessor mixin the 26.2 version needed (to bridge the then-{@code
+ * protected} {@code carveEllipsoid} and {@code carveBlock}) is gone.
+ *
+ * <p>What {@link CanyonCarveGeometry} runs instead is a faithful
+ * reimplementation of that same method body (bounds computation, X/Z/Y
+ * triple loop, {@code CarverOutput.carve} dispatch -- all pure geometry, no
+ * RNG), with only the Y-loop's skip decision computed in bulk via
+ * {@link VectorX#carverSkip()} instead of Mojang's per-element
  * {@code skipChecker.shouldSkip} call. The vectorized inner loop runs the
- * skip test ascending; the carve-dispatch loop right after it still walks
- * {@code worldY} descending, exactly like vanilla, since {@code carveBlock}'s
- * grass-preservation logic depends on that top-to-bottom order within a
- * column.
+ * skip test ascending; the dispatch loop right after it still walks
+ * {@code worldY} descending, exactly like vanilla. In 26.3 that order is no
+ * longer load-bearing for vanilla itself -- {@code carveBlock} and its
+ * {@code hasGrass} top-to-bottom column bookkeeping were removed, and the
+ * carver now only sets bits in a {@code CarvingMask}, which
+ * {@code NoiseBasedChunkGenerator.applyCarvingMask} later replays in
+ * {@code BitSet} index order -- but {@code CarverOutput} is a public
+ * interface anyone may implement, so mirroring vanilla's exact call
+ * sequence is kept as a free guarantee.
  */
 @Mixin(CanyonWorldCarver.class)
 public abstract class CanyonWorldCarverMixin {
 
     @Unique
-    private static boolean vectorx$vectorizedCarveEllipsoid(
-            CanyonWorldCarver instance,
-            CarvingContext context,
-            CarverConfiguration configuration,
-            ChunkAccess chunk,
-            Function<BlockPos, Holder<Biome>> biomeGetter,
-            Aquifer aquifer,
+    private static void vectorx$vectorizedCarveEllipsoid(
+            WorldGenerationContext context,
+            ChunkPos chunkPos,
             double x,
             double y,
             double z,
             double horizontalRadius,
             double verticalRadius,
-            CarvingMask mask,
+            CarverOutput output,
             float[] widthFactorPerHeight
     ) {
-        ChunkPos chunkPos = chunk.getPos();
-        boolean debugEnabled = SharedConstants.DEBUG_CARVERS || configuration.debugSettings.isDebugMode();
-        BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
-        BlockPos.MutableBlockPos helperPos = new BlockPos.MutableBlockPos();
-        MutableBoolean hasGrass = new MutableBoolean(false);
-        // sink calls are strictly ordered by (xIndex, zIndex, descending worldY), same as
-        // vanilla's loop nesting, so a column change is detectable from consecutive calls;
-        // vanilla resets hasGrass at the top of every z-loop iteration, before its worldY loop.
-        int[] lastColumn = {Integer.MIN_VALUE, Integer.MIN_VALUE};
-
-        return CanyonCarveGeometry.sweepVectorized(chunkPos, x, y, z, horizontalRadius, verticalRadius,
-                context.getMinGenY(), context.getGenDepth(), chunk.isUpgrading(), debugEnabled,
-                widthFactorPerHeight, VectorX.carverSkip(), mask,
-                (xIndex, worldY, zIndex) -> {
-                    if (lastColumn[0] != xIndex || lastColumn[1] != zIndex) {
-                        hasGrass.setFalse();
-                        lastColumn[0] = xIndex;
-                        lastColumn[1] = zIndex;
-                    }
-                    blockPos.set(chunkPos.getBlockX(xIndex), worldY, chunkPos.getBlockZ(zIndex));
-                    ((WorldCarverAccessor) instance).vectorx$invokeCarveBlock(context, configuration,
-                            chunk, biomeGetter, mask, blockPos, helperPos, aquifer, hasGrass);
-                });
+        CanyonCarveGeometry.sweepVectorized(chunkPos, x, y, z, horizontalRadius, verticalRadius,
+                output.minY(), output.maxY(), context.getMinGenY(),
+                widthFactorPerHeight, VectorX.carverSkip(), output::carve);
     }
 
     @Redirect(
@@ -116,42 +93,36 @@ public abstract class CanyonWorldCarverMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/world/level/levelgen/carver/WorldCarver;carveEllipsoid("
-                            + "Lnet/minecraft/world/level/levelgen/carver/CarvingContext;"
-                            + "Lnet/minecraft/world/level/levelgen/carver/CarverConfiguration;"
-                            + "Lnet/minecraft/world/level/chunk/ChunkAccess;"
-                            + "Ljava/util/function/Function;"
-                            + "Lnet/minecraft/world/level/levelgen/Aquifer;"
+                            + "Lnet/minecraft/world/level/ChunkPos;"
                             + "DDDDD"
-                            + "Lnet/minecraft/world/level/chunk/CarvingMask;"
+                            + "Lnet/minecraft/world/level/chunk/CarverOutput;"
                             + "Lnet/minecraft/world/level/levelgen/carver/WorldCarver$CarveSkipChecker;"
-                            + ")Z"
+                            + ")V"
             )
     )
-    private boolean vectorx$carveEllipsoid(
-            CanyonWorldCarver instance,
-            CarvingContext context,
-            CarverConfiguration configuration,
-            ChunkAccess chunk,
-            Function<BlockPos, Holder<Biome>> biomeGetter,
-            Aquifer aquifer,
+    private void vectorx$carveEllipsoid(
+            ChunkPos chunkPos,
             double x,
             double y,
             double z,
             double horizontalRadius,
             double verticalRadius,
-            CarvingMask mask,
+            CarverOutput output,
             WorldCarver.CarveSkipChecker skipChecker,
+            @Local(argsOnly = true) WorldGenerationContext context,
             @Local float[] widthFactorPerHeight
     ) {
         try {
-            return vectorx$vectorizedCarveEllipsoid(instance, context, configuration, chunk, biomeGetter, aquifer,
-                    x, y, z, horizontalRadius, verticalRadius, mask, widthFactorPerHeight);
+            vectorx$vectorizedCarveEllipsoid(context, chunkPos, x, y, z,
+                    horizontalRadius, verticalRadius, output, widthFactorPerHeight);
         } catch (Throwable t) {
             // Fall through to the exact real carveEllipsoid, unmodified;
             // never let a dispatch or reimplementation failure propagate
-            // into world generation.
-            return ((WorldCarverAccessor) instance).vectorx$invokeCarveEllipsoid(context, configuration, chunk,
-                    biomeGetter, aquifer, x, y, z, horizontalRadius, verticalRadius, mask, skipChecker);
+            // into world generation. Note this may re-carve positions the
+            // failed attempt already reported -- harmless, since 26.3's
+            // CarverOutput.carve is an idempotent BitSet set in vanilla.
+            WorldCarver.carveEllipsoid(chunkPos, x, y, z, horizontalRadius, verticalRadius,
+                    output, skipChecker);
         }
     }
 }

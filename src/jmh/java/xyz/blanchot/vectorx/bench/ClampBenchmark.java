@@ -20,9 +20,14 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Benchmarks {@code ClampKernels.clampInPlace}, real Minecraft's
- * {@code DensityFunctions.Clamp}, used 6 times in the vanilla noise router
- * ({@code NoiseRouterData.java}).
+ * Benchmarks {@code ClampKernels.clampInPlace}, the element-wise loop in real
+ * Minecraft 26.3's
+ * {@code net.minecraft.world.level.levelgen.densityfunction.op.ClampFunction$Sampler}.
+ * Clamp is used 6 times in the vanilla noise router ({@code NoiseRouterData}).
+ * <p>
+ * Since 26.3 the pipeline is {@code float}, not {@code double}, so both
+ * backends here work on {@code float[]} and the vector backend gets twice the
+ * lanes per register it had in 26.2.
  * <p>
  * Run with {@code ./gradlew jmhRun --args="ClampBenchmark"}.
  */
@@ -37,8 +42,8 @@ public class ClampBenchmark {
     @Param({"32", "97", "128", "4096"})
     public int size;
 
-    private double[] source;
-    private double[] scratch;
+    private float[] source;
+    private float[] scratch;
 
     private ClampKernels scalarBackend;
     private ClampKernels vectorBackend;
@@ -46,26 +51,26 @@ public class ClampBenchmark {
     @Setup(Level.Trial)
     public void setup() {
         Random random = new Random(42);
-        source = new double[size];
+        source = new float[size];
         for (int i = 0; i < size; i++) {
-            source[i] = (random.nextDouble() - 0.5) * 4.0;
+            source[i] = (float) ((random.nextDouble() - 0.5) * 4.0);
         }
-        scratch = new double[size];
+        scratch = new float[size];
         scalarBackend = ScalarClampKernels.INSTANCE;
         vectorBackend = SimdClampKernels.INSTANCE;
     }
 
     @Benchmark
-    public double[] scalarOptimized() {
+    public float[] scalarOptimized() {
         System.arraycopy(source, 0, scratch, 0, size);
-        scalarBackend.clampInPlace(scratch, -1.0, 1.0);
+        scalarBackend.clampInPlace(scratch, size, -1.0F, 1.0F);
         return scratch;
     }
 
     @Benchmark
-    public double[] vector() {
+    public float[] vector() {
         System.arraycopy(source, 0, scratch, 0, size);
-        vectorBackend.clampInPlace(scratch, -1.0, 1.0);
+        vectorBackend.clampInPlace(scratch, size, -1.0F, 1.0F);
         return scratch;
     }
 }

@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * {@code net.minecraft.world.level.levelgen.carver.CanyonWorldCarver} --
  * i.e. that this formula was transcribed correctly in the first place, not
  * just that both backends agree with each other -- is covered separately by
- * {@code CanyonWorldCarverGeometryTest}, which drives the real vanilla
+ * {@code CanyonCarveGeometryTest}, which drives the real vanilla
  * carve-decision path.
  */
 class CarverSkipDifferentialTest {

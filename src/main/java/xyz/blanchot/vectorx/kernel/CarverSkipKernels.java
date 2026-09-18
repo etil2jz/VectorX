@@ -4,7 +4,7 @@ package xyz.blanchot.vectorx.kernel;
  * Computes {@code CanyonWorldCarver.shouldSkip} for a whole {@code worldY}
  * sweep at once, for a fixed {@code (xd, zd)} carve-ellipsoid column.
  *
- * <p>Real Minecraft 26.2's formula, reproduced exactly (including using
+ * <p>Real Minecraft 26.3's formula, reproduced exactly (including using
  * true division, not a precomputed-reciprocal multiply, so results are
  * bit-identical to the scalar reference and to vanilla -- this matters
  * because the result feeds a {@code >= 1.0} threshold comparison, where

@@ -29,12 +29,15 @@ public final class CompatibilityRegistry {
         knownConflicts.put("lithium", "packedStorageUnpack");
 
         // Verified against Lithium's full mixin source tree (CaffeineMC/lithium,
-        // develop branch): no mixin path or class touches WorldCarver,
-        // CanyonWorldCarver, or carveEllipsoid/carveBlock/shouldSkip -- Lithium
-        // doesn't modify world carving at all. No entry needed for
-        // canyonCarverSkip; kept here as a note, not a map entry, since this
-        // registry only records verified conflicts/inertness, not clean bills
-        // of health.
+        // develop branch; there was no 26.3 branch yet at the time of writing):
+        // no mixin path or class touches WorldCarver, CanyonWorldCarver, or
+        // carveEllipsoid/shouldSkip -- Lithium doesn't modify world carving at
+        // all. Its chunk/serialization/SimpleBitStorageMixin only *adds* a
+        // lithium$compact method and touches neither unpack nor getAll, so it
+        // doesn't widen the packedStorageUnpack interaction above either. No
+        // entry needed for canyonCarverSkip; kept here as a note, not a map
+        // entry, since this registry only records verified conflicts/inertness,
+        // not clean bills of health.
     }
 
     public Optional<String> conflictingKernel(String modId) {
