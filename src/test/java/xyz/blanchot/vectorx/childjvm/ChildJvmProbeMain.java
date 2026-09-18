@@ -7,14 +7,6 @@ import xyz.blanchot.vectorx.kernel.PackedBitsKernels;
 
 import java.util.Arrays;
 
-/**
- * Entry point spawned in a child JVM by
- * {@code xyz.blanchot.vectorx.ChildJvmScalarPathTest} WITHOUT
- * {@code --add-modules=jdk.incubator.vector}, to prove the scalar path
- * actually works standalone -- not just "the tests we wrote for it pass in
- * the same JVM that has the module enabled". Touches only kernel/dispatch/
- * config classes, none of which depend on Minecraft, fabric-loader or SLF4J.
- */
 public final class ChildJvmProbeMain {
 
     private ChildJvmProbeMain() {

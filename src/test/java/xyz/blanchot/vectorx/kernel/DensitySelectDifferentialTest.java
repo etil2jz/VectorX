@@ -5,6 +5,7 @@ import net.minecraft.world.level.levelgen.densityfunction.DensitySampler;
 import net.minecraft.world.level.levelgen.densityfunction.DensityVolume;
 import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
 import net.minecraft.world.level.levelgen.densityfunction.op.LerpFunction;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 import xyz.blanchot.vectorx.kernel.scalar.ScalarDensitySelectKernels;
 import xyz.blanchot.vectorx.kernel.simd.SimdDensitySelectKernels;
@@ -15,41 +16,19 @@ import java.util.Random;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * Differential tests for {@link DensitySelectKernels} against the real sampler
- * records in Minecraft 26.3's {@code op.LerpFunction} and
- * {@code op.RangeChoiceFunction}. Ground truth is those unmodified records, run
- * over a real {@code DensityBuffer} -- never a reimplemented copy of Mojang's
- * formulas.
- *
- * <p>{@code LerpFunction$Sampler} is a public record and is constructed
- * directly. The two {@code RangeChoiceFunction} samplers are package-private,
- * so they are reached through their declared constructor by reflection rather
- * than by putting a factory in Mojang's package. If Mojang ever renames or
- * restructures them the lookup fails loudly here, which is the point: the
- * production Mixins target the same two classes by name.
- */
 class DensitySelectDifferentialTest {
 
     private static final DensitySelectKernels SCALAR = ScalarDensitySelectKernels.INSTANCE;
     private static final DensitySelectKernels VECTOR = SimdDensitySelectKernels.INSTANCE;
 
-    private static final String RANGE_CHOICE =
-            "net.minecraft.world.level.levelgen.densityfunction.op.RangeChoiceFunction";
+    private static final String RANGE_CHOICE = "net.minecraft.world.level.levelgen.densityfunction.op.RangeChoiceFunction";
 
-    private static DensitySampler newRangeChoiceSampler(DensitySampler input, float min, float max,
-                                                        DensitySampler whenInRange, DensitySampler whenOutOfRange) {
-        return construct(RANGE_CHOICE + "$Sampler",
-                new Class<?>[]{DensitySampler.class, float.class, float.class,
-                        DensitySampler.class, DensitySampler.class},
-                input, min, max, whenInRange, whenOutOfRange);
+    private static DensitySampler newRangeChoiceSampler(DensitySampler input, float min, float max, DensitySampler whenInRange, DensitySampler whenOutOfRange) {
+        return construct(RANGE_CHOICE + "$Sampler", new Class<?>[]{DensitySampler.class, float.class, float.class, DensitySampler.class, DensitySampler.class}, input, min, max, whenInRange, whenOutOfRange);
     }
 
-    private static DensitySampler newRangeChoiceConstSampler(DensitySampler input, float min, float max,
-                                                             float whenInRange, float whenOutOfRange) {
-        return construct(RANGE_CHOICE + "$ConstSampler",
-                new Class<?>[]{DensitySampler.class, float.class, float.class, float.class, float.class},
-                input, min, max, whenInRange, whenOutOfRange);
+    private static DensitySampler newRangeChoiceConstSampler(DensitySampler input, float min, float max, float whenInRange, float whenOutOfRange) {
+        return construct(RANGE_CHOICE + "$ConstSampler", new Class<?>[]{DensitySampler.class, float.class, float.class, float.class, float.class}, input, min, max, whenInRange, whenOutOfRange);
     }
 
     private static DensitySampler construct(String className, Class<?>[] signature, Object... args) {
@@ -59,12 +38,10 @@ class DensitySelectDifferentialTest {
             constructor.setAccessible(true);
             return (DensitySampler) constructor.newInstance(args);
         } catch (ReflectiveOperationException e) {
-            throw new AssertionError("could not reach real Minecraft " + className
-                    + "; the production Mixin targets this class by the same name", e);
+            throw new AssertionError("could not reach real Minecraft " + className + "; the production Mixin targets this class by the same name", e);
         }
     }
 
-    /** Alphas weighted towards the two constants vanilla special-cases. */
     private static float[] alphas(long seed, int count) {
         float[] fixed = {0.0F, -0.0F, 1.0F, 0.5F, -1.0F, 2.0F, Float.NaN,
                 Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY};
@@ -87,9 +64,7 @@ class DensitySelectDifferentialTest {
         float[] values = new float[count];
         Random random = new Random(seed);
         for (int i = 0; i < count; i++) {
-            values[i] = i < fixed.length
-                    ? fixed[i]
-                    : (float) ((random.nextDouble() - 0.5) * Math.pow(10, random.nextInt(10) - 5));
+            values[i] = i < fixed.length ? fixed[i] : (float) ((random.nextDouble() - 0.5) * Math.pow(10, random.nextInt(10) - 5));
         }
         return values;
     }
@@ -112,8 +87,7 @@ class DensitySelectDifferentialTest {
         float[] second = operands(3L, 500);
         int size = alpha.length;
 
-        float[] expected = vanilla(new LerpFunction.Sampler(
-                new ArraySampler(alpha), new ArraySampler(first), new ArraySampler(second)), size);
+        float[] expected = vanilla(new LerpFunction.Sampler(new ArraySampler(alpha), new ArraySampler(first), new ArraySampler(second)), size);
 
         float[] scalarOut = alpha.clone();
         float[] vectorOut = alpha.clone();
@@ -129,8 +103,7 @@ class DensitySelectDifferentialTest {
         float[] alpha = alphas(11L, 400);
         float[] first = operands(12L, 400);
         float[] second = operands(13L, 400);
-        DensitySampler sampler = new LerpFunction.Sampler(
-                new ArraySampler(alpha), new ArraySampler(first), new ArraySampler(second));
+        DensitySampler sampler = new LerpFunction.Sampler(new ArraySampler(alpha), new ArraySampler(first), new ArraySampler(second));
 
         float[] expected = new float[alpha.length];
         for (int i = 0; i < alpha.length; i++) {
@@ -154,8 +127,7 @@ class DensitySelectDifferentialTest {
         for (float[] range : new float[][]{{0.2F, 0.8F}, {-1.0F, 1.0F}, {0.0F, 0.0F}, {Float.NaN, 1.0F}}) {
             float min = range[0];
             float max = range[1];
-            float[] expected = vanilla(
-                    newRangeChoiceConstSampler(new ArraySampler(input), min, max, 7.5F, -7.5F), size);
+            float[] expected = vanilla(newRangeChoiceConstSampler(new ArraySampler(input), min, max, 7.5F, -7.5F), size);
 
             float[] scalarOut = input.clone();
             float[] vectorOut = input.clone();
@@ -177,8 +149,7 @@ class DensitySelectDifferentialTest {
         for (float[] range : new float[][]{{0.2F, 0.8F}, {-1.0F, 1.0F}, {Float.NaN, 1.0F}}) {
             float min = range[0];
             float max = range[1];
-            float[] expected = vanilla(newRangeChoiceSampler(new ArraySampler(input), min, max,
-                    new ArraySampler(whenInRange), new ArraySampler(whenOutOfRange)), size);
+            float[] expected = vanilla(newRangeChoiceSampler(new ArraySampler(input), min, max, new ArraySampler(whenInRange), new ArraySampler(whenOutOfRange)), size);
 
             float[] scalarOut = whenInRange.clone();
             float[] vectorOut = whenInRange.clone();
@@ -190,20 +161,13 @@ class DensitySelectDifferentialTest {
         }
     }
 
-    /**
-     * A {@code -0.0F} alpha must take the {@code first} branch, because Java's
-     * {@code ==} treats the two zeros as equal and vanilla's test is
-     * {@code alpha == 0.0F}. A vector backend that built the mask any other way
-     * would diverge here and nowhere else.
-     */
     @Test
     void negativeZeroAlphaTakesTheFirstBranch() {
         float[] alpha = {-0.0F};
         float[] first = {3.5F};
         float[] second = {-8.25F};
 
-        float[] expected = vanilla(new LerpFunction.Sampler(
-                new ArraySampler(alpha), new ArraySampler(first), new ArraySampler(second)), 1);
+        float[] expected = vanilla(new LerpFunction.Sampler(new ArraySampler(alpha), new ArraySampler(first), new ArraySampler(second)), 1);
         assertEquals(3.5F, expected[0], "vanilla should pick first for a -0.0f alpha");
 
         float[] scalarOut = alpha.clone();
@@ -215,11 +179,6 @@ class DensitySelectDifferentialTest {
         assertEquals(3.5F, vectorOut[0], "vector kernel diverged on -0.0f alpha");
     }
 
-    /**
-     * The kernels must leave the slots past {@code length} untouched: the array
-     * they are handed is a pooled buffer's backing storage, whose capacity runs
-     * past the live sample.
-     */
     @Test
     void kernelsRespectLengthAndLeaveTheTailAlone() {
         int size = 97;
@@ -253,12 +212,12 @@ class DensitySelectDifferentialTest {
 
     private record ArraySampler(float[] values) implements DensitySampler {
         @Override
-        public void sampleVolume(SamplerContext context, DensityBuffer outputBuffer, DensityVolume volume) {
+        public void sampleVolume(@NonNull SamplerContext context, @NonNull DensityBuffer outputBuffer, @NonNull DensityVolume volume) {
             DensitySampler.sampleVolumeNaive(context, outputBuffer, volume, this);
         }
 
         @Override
-        public float sampleValue(SamplerContext context, int blockX, int blockY, int blockZ) {
+        public float sampleValue(@NonNull SamplerContext context, int blockX, int blockY, int blockZ) {
             return this.values[blockX];
         }
     }

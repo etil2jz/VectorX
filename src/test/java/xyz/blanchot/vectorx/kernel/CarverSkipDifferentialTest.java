@@ -12,15 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/**
- * Differential tests for {@link CarverSkipKernels}: scalar vs. vector
- * backend agreement. End-to-end correctness against the real, unmodified
- * {@code net.minecraft.world.level.levelgen.carver.CanyonWorldCarver} --
- * i.e. that this formula was transcribed correctly in the first place, not
- * just that both backends agree with each other -- is covered separately by
- * {@code CanyonCarveGeometryTest}, which drives the real vanilla
- * carve-decision path.
- */
 class CarverSkipDifferentialTest {
 
     private static final CarverSkipKernels SCALAR = ScalarCarverSkipKernels.INSTANCE;
@@ -60,20 +51,14 @@ class CarverSkipDifferentialTest {
 
             boolean[] scalarTrimmed = trim(scalarOut, n);
             boolean[] vectorTrimmed = trim(vectorOut, n);
-            assertArrayEquals(scalarTrimmed, vectorTrimmed,
-                    () -> "mismatch n=" + n + " horizSum=" + horizSum + " y=" + y + " verticalRadius=" + verticalRadius);
+            assertArrayEquals(scalarTrimmed, vectorTrimmed, () -> "mismatch n=" + n + " horizSum=" + horizSum + " y=" + y + " verticalRadius=" + verticalRadius);
         }
     }
 
-    /**
-     * Exercises every lane-boundary offset (not just whole multiples of the
-     * vector width) so the scalar tail loop is provably tested at every
-     * possible remainder, regardless of this machine's vector lane width.
-     */
     @Test
     void everyRemainderAroundVectorWidthIsExercised() {
         Random random = new Random(0xB0DA71);
-        int maxWidthGuess = 16; // covers AVX-512 double (8) and then some
+        int maxWidthGuess = 16;
         for (int n = 0; n <= maxWidthGuess * 2 + 3; n++) {
             int minGenY = 0;
             int minY = 100;
@@ -97,17 +82,6 @@ class CarverSkipDifferentialTest {
         }
     }
 
-    /**
-     * Constructs a worldY sweep where every position's pre-comparison value
-     * is deliberately placed within a few ULPs of the 1.0 threshold, using a
-     * non-round {@code y} -- a round {@code y} (e.g. 0.0) can't expose a
-     * regression where the vector backend's {@code yd} computation collapses
-     * {@code (worldY - 0.5 - y)} into {@code worldY - (0.5 + y)}: those two
-     * groupings round identically whenever {@code 0.5 + y} can't lose bits,
-     * which is exactly true when y is 0 or otherwise "nice". Mirrors
-     * {@code CarverSkipSelfTest.checkBoundary}, kept here too so CI (not
-     * just the runtime self-test) catches this class of bug.
-     */
     @Test
     void boundaryValuesAgreeWithNonRoundY() {
         int minGenY = 0;
@@ -147,23 +121,17 @@ class CarverSkipDifferentialTest {
     @Test
     void outputShorterThanRangeThrows() {
         float[] widthFactorPerHeight = new float[10];
-        assertThrows(IndexOutOfBoundsException.class,
-                () -> SCALAR.canyonSkipMask(0.5, 64.0, 5.0, widthFactorPerHeight, 0, 60, 65, new boolean[2]));
-        assertThrows(IndexOutOfBoundsException.class,
-                () -> VECTOR.canyonSkipMask(0.5, 64.0, 5.0, widthFactorPerHeight, 0, 60, 65, new boolean[2]));
+        assertThrows(IndexOutOfBoundsException.class, () -> SCALAR.canyonSkipMask(0.5, 64.0, 5.0, widthFactorPerHeight, 0, 60, 65, new boolean[2]));
+        assertThrows(IndexOutOfBoundsException.class, () -> VECTOR.canyonSkipMask(0.5, 64.0, 5.0, widthFactorPerHeight, 0, 60, 65, new boolean[2]));
     }
 
     @Test
     void nullArgumentsThrowIdenticallyOnBothBackends() {
-        assertThrows(NullPointerException.class,
-                () -> SCALAR.canyonSkipMask(0.5, 64.0, 5.0, null, 0, 60, 65, new boolean[5]));
-        assertThrows(NullPointerException.class,
-                () -> VECTOR.canyonSkipMask(0.5, 64.0, 5.0, null, 0, 60, 65, new boolean[5]));
+        assertThrows(NullPointerException.class, () -> SCALAR.canyonSkipMask(0.5, 64.0, 5.0, null, 0, 60, 65, new boolean[5]));
+        assertThrows(NullPointerException.class, () -> VECTOR.canyonSkipMask(0.5, 64.0, 5.0, null, 0, 60, 65, new boolean[5]));
 
         float[] widthFactorPerHeight = new float[10];
-        assertThrows(NullPointerException.class,
-                () -> SCALAR.canyonSkipMask(0.5, 64.0, 5.0, widthFactorPerHeight, 0, 60, 65, null));
-        assertThrows(NullPointerException.class,
-                () -> VECTOR.canyonSkipMask(0.5, 64.0, 5.0, widthFactorPerHeight, 0, 60, 65, null));
+        assertThrows(NullPointerException.class, () -> SCALAR.canyonSkipMask(0.5, 64.0, 5.0, widthFactorPerHeight, 0, 60, 65, null));
+        assertThrows(NullPointerException.class, () -> VECTOR.canyonSkipMask(0.5, 64.0, 5.0, widthFactorPerHeight, 0, 60, 65, null));
     }
 }

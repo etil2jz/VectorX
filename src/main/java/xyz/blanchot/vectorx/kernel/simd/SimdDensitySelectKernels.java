@@ -10,21 +10,6 @@ import xyz.blanchot.vectorx.kernel.scalar.ScalarDensitySelectKernels;
 
 import java.util.Objects;
 
-/**
- * Vector API backend for {@link DensitySelectKernels}. Each scalar branch
- * becomes a lane mask plus a {@code blend}, which is the whole point: these
- * loops branch on their data, so C2 leaves them scalar.
- *
- * <p>NaN behaviour is preserved by construction rather than by special-casing.
- * Every mask below is built from an IEEE-754 comparison, which is false for
- * NaN on both backends, so a NaN lane provably falls to the same side as the
- * scalar reference: past both alpha tests into the lerp, and out of range for
- * the range-choice ops.
- *
- * <p>Negative zero is likewise handled by construction: {@code compare(EQ,
- * 0.0F)} is true for {@code -0.0F}, exactly as Java's {@code ==} is, so a
- * {@code -0.0F} alpha takes the {@code first} branch on both backends.
- */
 public final class SimdDensitySelectKernels implements DensitySelectKernels, SelfDescribing {
 
     public static final SimdDensitySelectKernels INSTANCE = new SimdDensitySelectKernels();
@@ -49,8 +34,6 @@ public final class SimdDensitySelectKernels implements DensitySelectKernels, Sel
             FloatVector alpha = FloatVector.fromArray(SPECIES, values, i);
             FloatVector f = FloatVector.fromArray(SPECIES, first, i);
             FloatVector s = FloatVector.fromArray(SPECIES, second, i);
-            // Mth.lerp's exact association, read off its bytecode:
-            // start + delta * (end - start).
             FloatVector lerped = f.add(alpha.mul(s.sub(f)));
             lerped = lerped.blend(s, alpha.compare(VectorOperators.EQ, 1.0F));
             lerped = lerped.blend(f, alpha.compare(VectorOperators.EQ, 0.0F));
@@ -62,9 +45,7 @@ public final class SimdDensitySelectKernels implements DensitySelectKernels, Sel
     }
 
     @Override
-    public void rangeChoiceConst(float[] values, int length,
-                                 float minInclusive, float maxExclusive,
-                                 float whenInRange, float whenOutOfRange) {
+    public void rangeChoiceConst(float[] values, int length, float minInclusive, float maxExclusive, float whenInRange, float whenOutOfRange) {
         Objects.requireNonNull(values, "values");
         Objects.checkFromIndexSize(0, length, values.length);
 
@@ -75,19 +56,16 @@ public final class SimdDensitySelectKernels implements DensitySelectKernels, Sel
         int i = 0;
         for (; i < bound; i += SPECIES.length()) {
             FloatVector v = FloatVector.fromArray(SPECIES, values, i);
-            VectorMask<Float> in = v.compare(VectorOperators.GE, minInclusive)
-                    .and(v.compare(VectorOperators.LT, maxExclusive));
+            VectorMask<Float> in = v.compare(VectorOperators.GE, minInclusive).and(v.compare(VectorOperators.LT, maxExclusive));
             outOfRangeVec.blend(inRangeVec, in).intoArray(values, i);
         }
         for (; i < length; i++) {
-            values[i] = ScalarDensitySelectKernels.chooseConst(values[i], minInclusive, maxExclusive,
-                    whenInRange, whenOutOfRange);
+            values[i] = ScalarDensitySelectKernels.chooseConst(values[i], minInclusive, maxExclusive, whenInRange, whenOutOfRange);
         }
     }
 
     @Override
-    public void rangeChoice(float[] values, float[] input, float[] whenOutOfRange, int length,
-                            float minInclusive, float maxExclusive) {
+    public void rangeChoice(float[] values, float[] input, float[] whenOutOfRange, int length, float minInclusive, float maxExclusive) {
         Objects.requireNonNull(values, "values");
         Objects.requireNonNull(input, "input");
         Objects.requireNonNull(whenOutOfRange, "whenOutOfRange");
@@ -101,11 +79,7 @@ public final class SimdDensitySelectKernels implements DensitySelectKernels, Sel
             FloatVector v = FloatVector.fromArray(SPECIES, values, i);
             FloatVector in = FloatVector.fromArray(SPECIES, input, i);
             FloatVector oor = FloatVector.fromArray(SPECIES, whenOutOfRange, i);
-            // vanilla writes the complement of "in range", which is what makes
-            // NaN take the out-of-range side.
-            VectorMask<Float> outside = in.compare(VectorOperators.GE, minInclusive)
-                    .and(in.compare(VectorOperators.LT, maxExclusive))
-                    .not();
+            VectorMask<Float> outside = in.compare(VectorOperators.GE, minInclusive).and(in.compare(VectorOperators.LT, maxExclusive)).not();
             v.blend(oor, outside).intoArray(values, i);
         }
         for (; i < length; i++) {

@@ -20,23 +20,6 @@ import xyz.blanchot.vectorx.kernel.simd.SimdDensityMapKernels;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Benchmarks {@code DensityMapKernels.apply} -- the element-wise loops in real
- * Minecraft 26.3's {@code UnaryFunction$*Sampler} records -- at the buffer
- * sizes chunk generation actually fills. In 26.3 a sampler is handed a
- * {@code DensityBuffer} sized from a {@code DensityVolume}, and the
- * whole-chunk one is large: {@code NoiseBasedChunkGenerator.chunkVolume}
- * builds a {@code DensityVolume(16, noiseSettings.height(), 16)}, i.e.
- * {@code 16 * 384 * 16 = 98304} floats for a default overworld.
- * {@code MaterialSystem} narrows it to the filled height and
- * {@code InterpolatedFunction} uses smaller cell volumes, hence the spread.
- * <p>
- * Since 26.3 the pipeline is {@code float}, not {@code double}, so both
- * backends here work on {@code float[]} and the vector backend gets twice the
- * lanes per register it had in 26.2.
- * <p>
- * Run with {@code ./gradlew jmhRun --args="DensityMapBenchmark"}.
- */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @State(Scope.Thread)

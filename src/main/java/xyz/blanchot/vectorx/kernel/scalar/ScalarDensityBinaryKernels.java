@@ -6,34 +6,6 @@ import xyz.blanchot.vectorx.kernel.SelfDescribing;
 
 import java.util.Objects;
 
-/**
- * Reference scalar implementation of {@link DensityBinaryKernels}. Each loop
- * body below was copied from the corresponding sampler record nested in real
- * Minecraft 26.3's
- * {@code net.minecraft.world.level.levelgen.densityfunction.op.BinaryFunction},
- * not re-derived from memory:
- *
- * <ul>
- *   <li>{@code AddSampler}: {@code outputBuffer.addTo(i, rightBuffer.get(i))}</li>
- *   <li>{@code SubSampler}: {@code outputBuffer.addTo(i, -rightBuffer.get(i))}
- *       -- spelled as an add of the negation, which IEEE-754 defines to be
- *       exactly {@code a - b}, so it is written as a subtraction here</li>
- *   <li>{@code MulSampler}: {@code get(i) * rightBuffer.get(i)}</li>
- *   <li>{@code DivSampler}: {@code get(i) / rightBuffer.get(i)}</li>
- *   <li>{@code MinSampler}: {@code if (r < get(i)) set(i, r)}</li>
- *   <li>{@code MaxSampler}: {@code if (r > get(i)) set(i, r)}</li>
- *   <li>{@code ConstAddSampler}: {@code addTo(i, right)}</li>
- *   <li>{@code ConstSubSampler}: {@code set(i, left - get(i))}</li>
- *   <li>{@code ConstMulSampler}: {@code set(i, get(i) * right)}</li>
- *   <li>{@code ConstDivSampler}: {@code set(i, left / get(i))}</li>
- *   <li>{@code ConstMinSampler}: {@code if (right < get(i)) set(i, right)}</li>
- *   <li>{@code ConstMaxSampler}: {@code if (right > get(i)) set(i, right)}</li>
- * </ul>
- *
- * <p>The {@code MIN}/{@code MAX} conditional writes are deliberately kept as
- * comparisons rather than {@code Math.min}/{@code Math.max}: the two differ on
- * signed zeros. See {@link DensityBinaryKernels}.
- */
 public final class ScalarDensityBinaryKernels implements DensityBinaryKernels, SelfDescribing {
 
     public static final ScalarDensityBinaryKernels INSTANCE = new ScalarDensityBinaryKernels();
@@ -41,10 +13,6 @@ public final class ScalarDensityBinaryKernels implements DensityBinaryKernels, S
     private ScalarDensityBinaryKernels() {
     }
 
-    /**
-     * Mirrors the two-buffer samplers: {@code left} is the running output
-     * value, {@code right} the value the right-hand child produced.
-     */
     public static float combine(DensityBinaryOp op, float left, float right) {
         return switch (op) {
             case ADD -> left + right;
@@ -56,10 +24,6 @@ public final class ScalarDensityBinaryKernels implements DensityBinaryKernels, S
         };
     }
 
-    /**
-     * Mirrors the {@code Const*} samplers. Note the operand order for
-     * {@code SUB} and {@code DIV}: vanilla puts the constant on the left.
-     */
     public static float combineConst(DensityBinaryOp op, float value, float operand) {
         return switch (op) {
             case ADD -> value + operand;

@@ -19,24 +19,6 @@ import xyz.blanchot.vectorx.kernel.simd.SimdDensitySelectKernels;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Benchmarks {@link DensitySelectKernels} -- the data-dependent selection
- * loops in real Minecraft 26.3's {@code LerpFunction$Sampler} and the two
- * {@code RangeChoiceFunction} samplers, which vanilla's own worldgen data
- * declares 21 times each.
- *
- * <p>Sizes match {@code DensityBinaryBenchmark}: the whole-chunk density
- * buffer is {@code 16 * 384 * 16 = 98304} floats, with smaller cell volumes
- * below it. {@code copyOnly} is the {@code System.arraycopy} floor every other
- * variant pays, so a variant that does not clearly beat it is measuring
- * memory bandwidth rather than arithmetic.
- *
- * <p>Alpha is drawn so that a realistic slice of lanes hits the two constant
- * fast paths, since a benchmark where the branch is never taken would
- * understate the scalar backend's misprediction cost.
- *
- * <p>Run with {@code ./gradlew jmhRun --args="DensitySelectBenchmark"}.
- */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Thread)

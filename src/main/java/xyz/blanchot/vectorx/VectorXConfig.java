@@ -4,15 +4,6 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
-/**
- * Immutable, plain-Java snapshot of VectorX's settings.
- *
- * <p>This class has no dependency on Fzzy Config, TOML, or Minecraft: it is
- * produced by {@code config.VectorXFzzyConfig#toSnapshot()} in
- * {@code onInitialize()} and otherwise built directly in tests. Keeping it
- * free of GUI/serialization concerns is what lets the dispatchers and their
- * tests run in a plain JVM.
- */
 public final class VectorXConfig {
 
     private static final KernelMode DEFAULT_MODE = KernelMode.AUTO;
@@ -22,8 +13,7 @@ public final class VectorXConfig {
     private final boolean diagnosticsEnabled;
     private final Map<String, KernelMode> kernelModes;
 
-    private VectorXConfig(boolean backendForcedScalar, boolean selfTestEnabled, boolean diagnosticsEnabled,
-                          Map<String, KernelMode> kernelModes) {
+    private VectorXConfig(boolean backendForcedScalar, boolean selfTestEnabled, boolean diagnosticsEnabled, Map<String, KernelMode> kernelModes) {
         this.backendForcedScalar = backendForcedScalar;
         this.selfTestEnabled = selfTestEnabled;
         this.diagnosticsEnabled = diagnosticsEnabled;
@@ -41,14 +31,8 @@ public final class VectorXConfig {
         return new VectorXConfig(false, true, false, modes);
     }
 
-    /**
-     * Builds a snapshot from already-resolved values, e.g. from
-     * {@code VectorXFzzyConfig#toSnapshot()}.
-     */
-    public static VectorXConfig of(boolean backendForcedScalar, boolean selfTestEnabled, boolean diagnosticsEnabled,
-                                   Map<String, KernelMode> kernelModes) {
-        return new VectorXConfig(backendForcedScalar, selfTestEnabled, diagnosticsEnabled,
-                new LinkedHashMap<>(kernelModes));
+    public static VectorXConfig of(boolean backendForcedScalar, boolean selfTestEnabled, boolean diagnosticsEnabled, Map<String, KernelMode> kernelModes) {
+        return new VectorXConfig(backendForcedScalar, selfTestEnabled, diagnosticsEnabled, new LinkedHashMap<>(kernelModes));
     }
 
     public VectorXConfig withBackendForcedScalar(boolean forced) {

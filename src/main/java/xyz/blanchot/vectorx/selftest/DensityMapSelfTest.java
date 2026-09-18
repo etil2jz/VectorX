@@ -5,23 +5,6 @@ import xyz.blanchot.vectorx.kernel.DensityMapOp;
 
 import java.util.Random;
 
-/**
- * Fast differential self-test, run once at startup (if {@code selfTest} is
- * enabled) to compare a candidate vector {@link DensityMapKernels} backend
- * against the scalar reference before trusting it.
- *
- * <p>Coverage per op: empty range, size 1, below/at/not-a-multiple-of the
- * SIMD width, {@code +-0.0f}, {@code +-Infinity}, {@code NaN}, values at the
- * {@code +-1} clamp boundary (relevant to {@code SQUEEZE}), and deterministic
- * random magnitudes across a wide exponent range.
- *
- * <p>It also covers {@code length < values.length} (the normal shape of a
- * pooled 26.3 {@code ScopedDensityBuffer}, whose capacity exceeds its live
- * {@code size()}), and {@link DensityMapKernels#leakyReLU} with factors
- * other than vanilla's {@code 0.5f}/{@code 0.25f}, since
- * {@code UnaryFunction$LeakyReLUSampler} is a public record whose canonical
- * constructor accepts any factor.
- */
 public final class DensityMapSelfTest {
 
     private static final long SEED = 0x56454354_4F52_58L;
@@ -63,11 +46,6 @@ public final class DensityMapSelfTest {
         return values;
     }
 
-    /**
-     * Builds a buffer of {@code size + 5} floats whose first {@code size}
-     * entries are interesting values and whose tail is a canary, reproducing
-     * the "capacity larger than live size" shape of a pooled density buffer.
-     */
     private static float[] source(int size, long seed) {
         int capacity = size + 5;
         float[] base = interestingValues(Math.max(0, capacity - 19), seed);
@@ -104,19 +82,14 @@ public final class DensityMapSelfTest {
     private static void compare(String what, int size, float[] scalarOut, float[] vectorOut) {
         for (int i = 0; i < scalarOut.length; i++) {
             if (!bitwiseEquals(scalarOut[i], vectorOut[i])) {
-                throw new SelfTestFailure(what + " size=" + size + " index=" + i
-                        + ": scalar=" + scalarOut[i] + " vector=" + vectorOut[i]);
+                throw new SelfTestFailure(what + " size=" + size + " index=" + i + ": scalar=" + scalarOut[i] + " vector=" + vectorOut[i]);
             }
             if (i >= size && !bitwiseEquals(vectorOut[i], TAIL_CANARY)) {
-                throw new SelfTestFailure(what + " size=" + size
-                        + ": wrote past length at index " + i + " (" + vectorOut[i] + ")");
+                throw new SelfTestFailure(what + " size=" + size + ": wrote past length at index " + i + " (" + vectorOut[i] + ")");
             }
         }
     }
 
-    /**
-     * NaN must compare equal to NaN here (both backends must produce NaN for the same inputs), unlike {@code ==}.
-     */
     private static boolean bitwiseEquals(float a, float b) {
         return Float.floatToIntBits(a) == Float.floatToIntBits(b);
     }

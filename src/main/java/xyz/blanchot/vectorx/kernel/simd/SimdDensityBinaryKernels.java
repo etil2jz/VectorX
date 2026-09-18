@@ -10,28 +10,6 @@ import xyz.blanchot.vectorx.kernel.scalar.ScalarDensityBinaryKernels;
 
 import java.util.Objects;
 
-/**
- * Vector API backend for {@link DensityBinaryKernels}. Every
- * {@link DensityBinaryOp} vectorizes: each is a pure per-lane function of one
- * or two {@code float}s with no cross-lane dependency.
- *
- * <p><b>{@code MIN} and {@code MAX} deliberately do not use
- * {@code VectorOperators.MIN}/{@code MAX}.</b> Those are specified in terms of
- * {@code Math.min}/{@code Math.max}, which disagree with vanilla's conditional
- * write on signed zeros: vanilla's {@code if (candidate < current)} keeps
- * {@code +0.0F} when the candidate is {@code -0.0F}, while {@code Math.min}
- * returns {@code -0.0F}. Reproducing the comparison with {@code compare} plus
- * {@code blend} keeps this bit-identical to
- * {@link ScalarDensityBinaryKernels}, including on NaN: an IEEE-754 comparison
- * is false for NaN on both backends, so a NaN lane provably takes the same
- * branch.
- *
- * <p>{@code SUB} is a real {@code sub}, and the constant forms of {@code SUB}
- * and {@code DIV} broadcast the constant into the left operand rather than
- * rewriting the expression -- {@code operand - v} is not {@code -(v - operand)}
- * for every input, and {@code operand / v} is not {@code v * (1 / operand)}
- * at all.
- */
 public final class SimdDensityBinaryKernels implements DensityBinaryKernels, SelfDescribing {
 
     public static final SimdDensityBinaryKernels INSTANCE = new SimdDensityBinaryKernels();
@@ -47,8 +25,6 @@ public final class SimdDensityBinaryKernels implements DensityBinaryKernels, Sel
             case SUB -> left.sub(right);
             case MUL -> left.mul(right);
             case DIV -> left.div(right);
-            // right < left ? right : left -- see the class javadoc on why this
-            // is not lanewise(MIN).
             case MIN -> left.blend(right, right.compare(VectorOperators.LT, left));
             case MAX -> left.blend(right, right.compare(VectorOperators.GT, left));
         };
@@ -60,7 +36,6 @@ public final class SimdDensityBinaryKernels implements DensityBinaryKernels, Sel
             case SUB -> FloatVector.broadcast(SPECIES, operand).sub(v);
             case MUL -> v.mul(operand);
             case DIV -> FloatVector.broadcast(SPECIES, operand).div(v);
-            // operand < v ? operand : v
             case MIN -> v.blend(operand, v.compare(VectorOperators.GT, operand));
             case MAX -> v.blend(operand, v.compare(VectorOperators.LT, operand));
         };

@@ -50,8 +50,7 @@ class PackedBitsDispatcherTest {
 
     @Test
     void perKernelScalarConfigDisablesOnlyThisKernel() {
-        VectorXConfig config =
-                VectorXConfig.defaults().withKernelMode(PackedBitsDispatcher.CONFIG_KEY, KernelMode.SCALAR);
+        VectorXConfig config = VectorXConfig.defaults().withKernelMode(PackedBitsDispatcher.CONFIG_KEY, KernelMode.SCALAR);
         PackedBitsDispatcher dispatcher = new PackedBitsDispatcher(config, VectorXLog.noop());
 
         assertFalse(dispatcher.isVector());

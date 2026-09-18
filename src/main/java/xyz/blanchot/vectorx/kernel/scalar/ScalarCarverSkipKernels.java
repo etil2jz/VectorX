@@ -5,13 +5,6 @@ import xyz.blanchot.vectorx.kernel.SelfDescribing;
 
 import java.util.Objects;
 
-/**
- * Reference scalar implementation of {@link CarverSkipKernels}. The formula
- * was copied from real Minecraft 26.3's {@code CanyonWorldCarver.shouldSkip
- * (WorldGenerationContext, float[], double, double, double, int)} and the {@code yd}
- * computation from the {@code worldY} loop in {@code WorldCarver.carveEllipsoid},
- * not re-derived from memory.
- */
 public final class ScalarCarverSkipKernels implements CarverSkipKernels, SelfDescribing {
 
     public static final ScalarCarverSkipKernels INSTANCE = new ScalarCarverSkipKernels();
@@ -20,9 +13,7 @@ public final class ScalarCarverSkipKernels implements CarverSkipKernels, SelfDes
     }
 
     @Override
-    public void canyonSkipMask(double horizSum, double y, double verticalRadius,
-                               float[] widthFactorPerHeight, int minGenY,
-                               int minY, int maxY, boolean[] output) {
+    public void canyonSkipMask(double horizSum, double y, double verticalRadius, float[] widthFactorPerHeight, int minGenY, int minY, int maxY, boolean[] output) {
         Objects.requireNonNull(widthFactorPerHeight, "widthFactorPerHeight");
         Objects.requireNonNull(output, "output");
         int n = maxY - minY;

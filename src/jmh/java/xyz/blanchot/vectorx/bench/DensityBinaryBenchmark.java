@@ -20,24 +20,6 @@ import xyz.blanchot.vectorx.kernel.simd.SimdDensityBinaryKernels;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Benchmarks {@link DensityBinaryKernels} -- the element-wise loops in real
- * Minecraft 26.3's {@code BinaryFunction$*Sampler} records, by far the most
- * frequently declared density-function ops in vanilla's own worldgen data
- * ({@code add} and {@code mul} alone account for 126 of roughly 200
- * element-wise declarations across the 55 files in
- * {@code data/minecraft/worldgen/density_function/}).
- *
- * <p>Sizes are taken from what 26.3 actually allocates, not guessed:
- * {@code NoiseBasedChunkGenerator.chunkVolume} builds a
- * {@code DensityVolume(16, noiseSettings.height(), 16)}, so the whole-chunk
- * buffer is {@code 16 * 384 * 16 = 98304} floats for a default overworld.
- * {@code MaterialSystem} narrows that to the filled height, and
- * {@code InterpolatedFunction} works on smaller cell volumes, hence the
- * spread below rather than a single size.
- *
- * <p>Run with {@code ./gradlew jmhRun --args="DensityBinaryBenchmark"}.
- */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Thread)
@@ -73,13 +55,6 @@ public class DensityBinaryBenchmark {
         vectorBackend = SimdDensityBinaryKernels.INSTANCE;
     }
 
-    /**
-     * Baseline: the {@code System.arraycopy} every benchmark below performs to
-     * restore the input. At 98304 floats that copy costs microseconds on its
-     * own, enough to dominate the cheap branch-free ops, so a variant that
-     * does not clearly beat this number is measuring memory bandwidth rather
-     * than arithmetic.
-     */
     @Benchmark
     public float[] copyOnly() {
         System.arraycopy(source, 0, scratch, 0, size);

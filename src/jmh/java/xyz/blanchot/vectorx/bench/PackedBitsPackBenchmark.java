@@ -19,14 +19,6 @@ import xyz.blanchot.vectorx.kernel.simd.SimdPackedBitsKernels;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Benchmarks {@code PackedBitsKernels.pack}, the inverse of {@code unpack}
- * (benchmarked separately in {@link PackedBitsUnpackBenchmark}). Only
- * {@code bits=4} is vectorized; every other width delegates to the scalar
- * reference.
- * <p>
- * Run with {@code ./gradlew jmhRun --args="PackedBitsPackBenchmark"}.
- */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @State(Scope.Thread)

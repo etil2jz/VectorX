@@ -4,22 +4,6 @@ import xyz.blanchot.vectorx.kernel.DensitySelectKernels;
 
 import java.util.Random;
 
-/**
- * Fast differential self-test, run once at startup (if {@code selfTest} is
- * enabled) to compare a candidate vector {@link DensitySelectKernels} backend
- * against the scalar reference before trusting it.
- *
- * <p>Covers all three entry points at empty, size 1, below/at/not-a-multiple-of
- * the SIMD width, and with {@code length < values.length} (the normal shape of
- * a pooled 26.3 {@code ScopedDensityBuffer}).
- *
- * <p>The alpha values fed to {@code lerp} deliberately include exact
- * {@code 0.0f}, {@code -0.0f} and {@code 1.0f}: those are the two branches
- * vanilla special-cases, and they are semantic rather than an optimization,
- * since {@code first + 1.0F * (second - first)} is not {@code second} for
- * every pair of floats. NaN is included on every comparison so a lane that
- * falls through every branch is exercised too.
- */
 public final class DensitySelectSelfTest {
 
     private static final long SEED = 0x56454354_4F52_5AL;
@@ -47,7 +31,6 @@ public final class DensitySelectSelfTest {
         }
     }
 
-    /** Alphas weighted towards the two special-cased constants. */
     private static float[] alphas(int count, long seed) {
         float[] fixed = {
                 0.0F, -0.0F, 1.0F, 0.5F, -1.0F, 2.0F, Float.NaN,
@@ -74,9 +57,7 @@ public final class DensitySelectSelfTest {
         float[] values = new float[count];
         Random random = new Random(seed);
         for (int i = 0; i < count; i++) {
-            values[i] = i < fixed.length
-                    ? fixed[i]
-                    : (float) ((random.nextDouble() - 0.5) * Math.pow(10, random.nextInt(10) - 5));
+            values[i] = i < fixed.length ? fixed[i] : (float) ((random.nextDouble() - 0.5) * Math.pow(10, random.nextInt(10) - 5));
         }
         return values;
     }
@@ -101,8 +82,7 @@ public final class DensitySelectSelfTest {
         }
     }
 
-    private static void checkRangeChoiceConst(float min, float max,
-                                              DensitySelectKernels scalar, DensitySelectKernels vector) {
+    private static void checkRangeChoiceConst(float min, float max, DensitySelectKernels scalar, DensitySelectKernels vector) {
         for (int size : SIZES) {
             float[] src = withCanaryTail(alphas(size + 5, SEED + 3), size);
             float[] scalarOut = src.clone();
@@ -113,8 +93,7 @@ public final class DensitySelectSelfTest {
         }
     }
 
-    private static void checkRangeChoice(float min, float max,
-                                         DensitySelectKernels scalar, DensitySelectKernels vector) {
+    private static void checkRangeChoice(float min, float max, DensitySelectKernels scalar, DensitySelectKernels vector) {
         for (int size : SIZES) {
             float[] src = withCanaryTail(operands(size + 5, SEED + 5), size);
             float[] input = alphas(size + 5, SEED + 7);
@@ -130,20 +109,14 @@ public final class DensitySelectSelfTest {
     private static void compare(String what, int size, float[] scalarOut, float[] vectorOut) {
         for (int i = 0; i < scalarOut.length; i++) {
             if (!bitwiseEquals(scalarOut[i], vectorOut[i])) {
-                throw new SelfTestFailure(what + " size=" + size + " index=" + i
-                        + ": scalar=" + scalarOut[i] + " vector=" + vectorOut[i]);
+                throw new SelfTestFailure(what + " size=" + size + " index=" + i + ": scalar=" + scalarOut[i] + " vector=" + vectorOut[i]);
             }
             if (i >= size && !bitwiseEquals(vectorOut[i], TAIL_CANARY)) {
-                throw new SelfTestFailure(what + " size=" + size
-                        + ": wrote past length at index " + i + " (" + vectorOut[i] + ")");
+                throw new SelfTestFailure(what + " size=" + size + ": wrote past length at index " + i + " (" + vectorOut[i] + ")");
             }
         }
     }
 
-    /**
-     * Bitwise, so NaN compares equal to NaN and {@code +0.0f} does not compare
-     * equal to {@code -0.0f}.
-     */
     private static boolean bitwiseEquals(float a, float b) {
         return Float.floatToIntBits(a) == Float.floatToIntBits(b);
     }

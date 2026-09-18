@@ -8,6 +8,7 @@ import net.minecraft.world.level.levelgen.densityfunction.DensitySampler;
 import net.minecraft.world.level.levelgen.densityfunction.DensityVolume;
 import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
 import net.minecraft.world.level.levelgen.densityfunction.op.UnaryFunction;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -21,37 +22,12 @@ import java.util.Random;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Differential tests for {@link DensityMapKernels} against the real
- * per-op sampler records nested in Minecraft 26.3's
- * {@code net.minecraft.world.level.levelgen.densityfunction.op.UnaryFunction}.
- *
- * <p>26.3 replaced 26.2's single {@code DensityFunctions.Mapped} +
- * {@code Mapped.Type} switch with one {@code DensitySampler} record per op,
- * all {@code public} with public canonical constructors. Ground truth here is
- * therefore those unmodified records, constructed directly over a stub input
- * sampler -- never a reimplemented copy of Mojang's formulas, and never a
- * {@code CompileContext} (whose three methods are noise/random factories a
- * constant input never calls). {@code UnaryFunction.compileSampler} is what
- * maps a {@code Type} to one of these classes; {@link #vanillaSampler} mirrors
- * that mapping for the subset {@link DensityMapOp} models.
- *
- * <p>These tests deliberately do not bootstrap Minecraft's registries: each
- * {@code UnaryFunction$*Sampler} is a distinct class from {@code UnaryFunction},
- * so touching one never runs {@code UnaryFunction.Type}'s codec initializer or
- * its dependency on {@code Registries.DENSITY_FUNCTION}.
- */
 class DensityMapDifferentialTest {
 
     private static final DensityMapKernels SCALAR = ScalarDensityMapKernels.INSTANCE;
     private static final DensityMapKernels VECTOR = SimdDensityMapKernels.INSTANCE;
     private static final float TAIL_CANARY = 1234.5F;
 
-    /**
-     * The same {@code Type -> sampler class} mapping real
-     * {@code UnaryFunction.compileSampler} performs, restricted to the ops
-     * {@link DensityMapOp} models.
-     */
     private static DensitySampler vanillaSampler(DensityMapOp op, DensitySampler input) {
         return switch (op) {
             case ABS -> new UnaryFunction.AbsSampler(input);
@@ -80,9 +56,6 @@ class DensityMapDifferentialTest {
         return values;
     }
 
-    /**
-     * Runs a real Mojang sampler over {@code values} and returns what it wrote.
-     */
     private static float[] vanilla(DensitySampler mapped, int size) {
         DensityVolume volume = new DensityVolume(size, 1, 1, 0, 0, 0);
         DensityBuffer buffer = DensityBuffer.createUnpooled(size);
@@ -111,11 +84,6 @@ class DensityMapDifferentialTest {
         assertArrayEquals(expected, vectorOut, () -> "vector mismatch vs real UnaryFunction sampler, op=" + op);
     }
 
-    /**
-     * {@code sampleValue} is a separate method body from {@code sampleVolume}
-     * in every one of these records, and the Mixin only replaces the latter;
-     * the kernel must agree with both.
-     */
     @ParameterizedTest
     @EnumSource(DensityMapOp.class)
     void scalarAndVectorMatchRealMinecraftSampleValue(DensityMapOp op) {
@@ -136,15 +104,6 @@ class DensityMapDifferentialTest {
         assertArrayEquals(expected, vectorOut, () -> "vector mismatch vs real sampleValue, op=" + op);
     }
 
-    /**
-     * {@link #interestingValues} has a fixed length, so whether it actually
-     * exercises {@code SimdDensityMapKernels}'s vectorized loop body depends on
-     * this machine's vector lane width. This test computes the lane count from
-     * the runtime species directly (the same construction the kernel uses --
-     * {@code FloatVector} since 26.3, not {@code DoubleVector}) and targets
-     * lengths immediately below, at and above one and two lane boundaries, so
-     * the vectorized body is provably exercised on any platform.
-     */
     @ParameterizedTest
     @EnumSource(DensityMapOp.class)
     void vectorPathBoundariesAreExercisedRegardlessOfPlatformLaneWidth(DensityMapOp op) {
@@ -165,22 +124,10 @@ class DensityMapDifferentialTest {
             float[] vectorOut = values.clone();
             VECTOR.apply(vectorOut, size, op);
 
-            assertArrayEquals(expected, vectorOut,
-                    () -> "vector mismatch at lane boundary, op=" + op + " size=" + size + " lanes=" + lanes);
+            assertArrayEquals(expected, vectorOut, () -> "vector mismatch at lane boundary, op=" + op + " size=" + size + " lanes=" + lanes);
         }
     }
 
-    /**
-     * {@code SQUEEZE}'s reference divides by {@code 24.0F}; a vector backend
-     * that instead multiplies by a precomputed {@code 1.0F / 24.0F} rounds
-     * differently for a small fraction of interior (unclamped) inputs -- rare
-     * enough that {@link #interestingValues}' random samples (mostly outside
-     * {@code [-1, 1]}, where clamping saturates the value and hides the
-     * discrepancy) can miss it by chance. This sweeps 20,000 evenly spaced
-     * points densely covering the interior range specifically so that class of
-     * regression cannot hide statistically. It has caught the bug twice in this
-     * project's history, once here and once in {@code SimdCarverSkipKernels}.
-     */
     @Test
     void squeezeAgreesWithScalarAcrossDenseInteriorSweep() {
         int n = 20_000;
@@ -199,15 +146,6 @@ class DensityMapDifferentialTest {
         assertArrayEquals(expected, vectorOut, "SQUEEZE vector mismatch across dense interior sweep");
     }
 
-    /**
-     * {@code UnaryFunction.compileSampler} only ever builds a
-     * {@code LeakyReLUSampler} with {@code 0.5F} or {@code 0.25F}, but the
-     * record is public and its canonical constructor accepts anything, so
-     * {@code UnaryFunctionSamplerMixin} forwards the sampler's actual
-     * {@code negativeFactor()} to {@link DensityMapKernels#leakyReLU}. This
-     * checks that path against the real record for factors vanilla never
-     * produces.
-     */
     @ParameterizedTest
     @ValueSource(floats = {0.5F, 0.25F, 0.0F, -0.0F, 1.0F, -3.25F, 1.0E20F, Float.NaN})
     void leakyReLUMatchesRealMinecraftForArbitraryFactors(float negativeFactor) {
@@ -224,15 +162,6 @@ class DensityMapDifferentialTest {
         assertArrayEquals(expected, vectorOut, () -> "vector mismatch, negativeFactor=" + negativeFactor);
     }
 
-    /**
-     * 26.3 hands samplers a {@code ScopedDensityBuffer} drawn from a
-     * {@code DensityBufferPool}, whose capacity is rounded up to a multiple of
-     * 16 while {@code size()} stays exact -- so the backing {@code float[]} the
-     * Mixin passes to the kernel is routinely longer than the live sample and
-     * the trailing slots still hold a previous user's data. This pins that down
-     * against the real pool (the assertion below is empirical proof, not an
-     * assumption) and checks that both backends stop exactly at {@code size()}.
-     */
     @ParameterizedTest
     @EnumSource(DensityMapOp.class)
     void poolBackedBufferHasSpareCapacityAndKernelsRespectIt(DensityMapOp op) {
@@ -241,8 +170,7 @@ class DensityMapDifferentialTest {
         SamplerContext context = SamplerContext.builder().useBufferArena(new DensityBufferPool(4)).build();
         DensityBuffer buffer = context.acquireBuffer(volume);
 
-        assertTrue(buffer.capacity() > buffer.size(),
-                "expected the pooled buffer capacity (" + buffer.capacity() + ") to exceed its size (" + buffer.size() + ")");
+        assertTrue(buffer.capacity() > buffer.size(), "expected the pooled buffer capacity (" + buffer.capacity() + ") to exceed its size (" + buffer.size() + ")");
         int capacity = buffer.capacity();
         for (int i = size; i < capacity; i++) {
             buffer.set(i, TAIL_CANARY);
@@ -281,20 +209,14 @@ class DensityMapDifferentialTest {
         }
     }
 
-    /**
-     * Wraps a plain {@code float[]} as a real {@code DensitySampler}, indexed by
-     * {@code blockX}. {@code DensitySampler.sampleVolumeNaive} traverses z, then
-     * x, then y, so a {@code sizeX * 1 * 1} volume anchored at the origin maps
-     * buffer index {@code i} to {@code blockX == i}.
-     */
     private record ArraySampler(float[] values) implements DensitySampler {
         @Override
-        public void sampleVolume(SamplerContext context, DensityBuffer outputBuffer, DensityVolume volume) {
+        public void sampleVolume(@NonNull SamplerContext context, @NonNull DensityBuffer outputBuffer, @NonNull DensityVolume volume) {
             DensitySampler.sampleVolumeNaive(context, outputBuffer, volume, this);
         }
 
         @Override
-        public float sampleValue(SamplerContext context, int blockX, int blockY, int blockZ) {
+        public float sampleValue(@NonNull SamplerContext context, int blockX, int blockY, int blockZ) {
             return this.values[blockX];
         }
     }

@@ -9,20 +9,6 @@ import xyz.blanchot.vectorx.selftest.ClampSelfTest;
 
 import java.util.Objects;
 
-/**
- * Fail-open resolver for the {@link ClampKernels} backend.
- *
- * <p>Decision order (first match wins), evaluated once at construction time:
- * <ol>
- *   <li>system property {@code vectorized.forceScalar=true} -&gt; scalar;</li>
- *   <li>config {@code backendForcedScalar=true} -&gt; scalar;</li>
- *   <li>{@code jdk.incubator.vector} absent from the boot module layer -&gt; scalar;</li>
- *   <li>{@code SimdClampKernels} fails to load/link -&gt; scalar;</li>
- *   <li>config {@code densityFunctionClamp} is {@code "scalar"} or {@code "off"} -&gt; scalar;</li>
- *   <li>the differential self-test fails -&gt; scalar;</li>
- *   <li>otherwise -&gt; vector.</li>
- * </ol>
- */
 public final class ClampDispatcher implements KernelDispatcher {
 
     public static final String CONFIG_KEY = "densityFunctionClamp";
@@ -111,9 +97,6 @@ public final class ClampDispatcher implements KernelDispatcher {
         return vector;
     }
 
-    /**
-     * Non-null only when currently on the scalar path.
-     */
     @Override
     public String disableReason() {
         return disableReason;

@@ -9,30 +9,6 @@ import xyz.blanchot.vectorx.selftest.DensityBinarySelfTest;
 
 import java.util.Objects;
 
-/**
- * Fail-open resolver for the {@link DensityBinaryKernels} backend.
- *
- * <p>Decision order (first match wins), evaluated once at construction time:
- * <ol>
- *   <li>system property {@code vectorized.forceScalar=true} -&gt; scalar;</li>
- *   <li>config {@code backendForcedScalar=true} -&gt; scalar;</li>
- *   <li>{@code jdk.incubator.vector} absent from the boot module layer -&gt; scalar;</li>
- *   <li>{@code SimdDensityBinaryKernels} fails to load/link -&gt; scalar;</li>
- *   <li>config {@code densityFunctionMinMax} is {@code "scalar"} or {@code "off"} -&gt; scalar;</li>
- *   <li>the differential self-test fails -&gt; scalar;</li>
- *   <li>otherwise -&gt; vector.</li>
- * </ol>
- *
- * <p>Named for what it actually gates. {@link DensityBinaryKernels} models all
- * six of {@code BinaryFunction}'s ops so the differential tests can cover the
- * whole contract, but only {@code MIN} and {@code MAX} are reachable from a
- * Mixin: {@code ADD}, {@code SUB}, {@code MUL} and {@code DIV} are branch-free
- * loops that C2 already auto-vectorizes, and measuring them showed the vector
- * backend at 0.74x-0.89x of scalar at whole-chunk buffer sizes -- a loss, not
- * a gain (see {@code bench.DensityBinaryBenchmark}). The conditional writes in
- * {@code MIN}/{@code MAX} are the opposite case, at 41x-97x net of the
- * benchmark's copy floor.
- */
 public final class MinMaxDispatcher implements KernelDispatcher {
 
     public static final String CONFIG_KEY = "densityFunctionMinMax";
@@ -121,9 +97,6 @@ public final class MinMaxDispatcher implements KernelDispatcher {
         return vector;
     }
 
-    /**
-     * Non-null only when currently on the scalar path.
-     */
     @Override
     public String disableReason() {
         return disableReason;

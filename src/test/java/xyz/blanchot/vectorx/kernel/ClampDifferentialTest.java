@@ -8,6 +8,7 @@ import net.minecraft.world.level.levelgen.densityfunction.DensitySampler;
 import net.minecraft.world.level.levelgen.densityfunction.DensityVolume;
 import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
 import net.minecraft.world.level.levelgen.densityfunction.op.ClampFunction;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 import xyz.blanchot.vectorx.kernel.scalar.ScalarClampKernels;
 import xyz.blanchot.vectorx.kernel.simd.SimdClampKernels;
@@ -18,24 +19,6 @@ import java.util.Random;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Differential tests for {@link ClampKernels} against real Minecraft 26.3's
- * {@code net.minecraft.world.level.levelgen.densityfunction.op.ClampFunction$Sampler},
- * the exact class {@code ClampFunctionSamplerMixin} targets.
- *
- * <p>Ground truth is that real, unmodified record: 26.3 compiles the
- * declarative {@code ClampFunction} node into this {@code Sampler} through
- * {@code compileSampler(CompileContext)}, and the {@code Sampler} is
- * {@code public} with a public canonical constructor, so it can be built
- * directly here with a stub input sampler -- no reimplementation of
- * {@code Mth.clamp}, and no {@code CompileContext} (whose three methods are
- * all noise/random factories that a constant input never calls).
- *
- * <p>These tests deliberately do not bootstrap Minecraft's registries:
- * {@code ClampFunction$Sampler} is a distinct class from {@code ClampFunction},
- * so touching it never runs {@code ClampFunction.CODEC}'s initializer or its
- * dependency on {@code Registries.DENSITY_FUNCTION}.
- */
 class ClampDifferentialTest {
 
     private static final ClampKernels SCALAR = ScalarClampKernels.INSTANCE;
@@ -58,9 +41,6 @@ class ClampDifferentialTest {
         return values;
     }
 
-    /**
-     * Runs the real Mojang sampler over {@code values} and returns what it wrote.
-     */
     private static float[] vanilla(float[] values, float min, float max) {
         int size = values.length;
         DensityVolume volume = new DensityVolume(size, 1, 1, 0, 0, 0);
@@ -89,19 +69,12 @@ class ClampDifferentialTest {
                 SCALAR.clampInPlace(scalarOut, size, min, max);
                 VECTOR.clampInPlace(vectorOut, size, min, max);
 
-                assertArrayEquals(expected, scalarOut,
-                        () -> "scalar mismatch vs real ClampFunction$Sampler, size=" + size + " bounds=" + min + ".." + max);
-                assertArrayEquals(expected, vectorOut,
-                        () -> "vector mismatch vs real ClampFunction$Sampler, size=" + size + " bounds=" + min + ".." + max);
+                assertArrayEquals(expected, scalarOut, () -> "scalar mismatch vs real ClampFunction$Sampler, size=" + size + " bounds=" + min + ".." + max);
+                assertArrayEquals(expected, vectorOut, () -> "vector mismatch vs real ClampFunction$Sampler, size=" + size + " bounds=" + min + ".." + max);
             }
         }
     }
 
-    /**
-     * The real per-point entry point, {@code sampleValue}, must agree too:
-     * it is a separate method body in the record from {@code sampleVolume},
-     * and the Mixin only replaces the latter.
-     */
     @Test
     void scalarMatchesRealMinecraftClampSampleValue() {
         float[] values = interestingValues(99L, 200);
@@ -140,15 +113,6 @@ class ClampDifferentialTest {
         }
     }
 
-    /**
-     * 26.3 hands samplers a {@code ScopedDensityBuffer} drawn from a
-     * {@code DensityBufferPool}, whose capacity is rounded up to a multiple of
-     * 16 while {@code size()} stays exact -- so the backing {@code float[]} is
-     * routinely longer than the live sample and the trailing slots still hold
-     * a previous user's data. This pins that down against the real pool (the
-     * assertion below is empirical proof, not an assumption) and checks that
-     * both backends stop exactly at {@code size()}.
-     */
     @Test
     void poolBackedBufferHasSpareCapacityAndKernelsRespectIt() {
         int size = 97;
@@ -156,8 +120,7 @@ class ClampDifferentialTest {
         SamplerContext context = SamplerContext.builder().useBufferArena(new DensityBufferPool(4)).build();
         DensityBuffer buffer = context.acquireBuffer(volume);
 
-        assertTrue(buffer.capacity() > buffer.size(),
-                "expected the pooled buffer capacity (" + buffer.capacity() + ") to exceed its size (" + buffer.size() + ")");
+        assertTrue(buffer.capacity() > buffer.size(), "expected the pooled buffer capacity (" + buffer.capacity() + ") to exceed its size (" + buffer.size() + ")");
         int capacity = buffer.capacity();
         for (int i = size; i < capacity; i++) {
             buffer.set(i, TAIL_CANARY);
@@ -194,20 +157,14 @@ class ClampDifferentialTest {
         assertArrayEquals(new float[]{TAIL_CANARY, TAIL_CANARY}, vectorOut);
     }
 
-    /**
-     * Wraps a plain {@code float[]} as a real {@code DensitySampler}, indexed by
-     * {@code blockX}. {@code DensitySampler.sampleVolumeNaive} traverses z, then
-     * x, then y, so a {@code sizeX * 1 * 1} volume anchored at the origin maps
-     * buffer index {@code i} to {@code blockX == i}.
-     */
     private record ArraySampler(float[] values) implements DensitySampler {
         @Override
-        public void sampleVolume(SamplerContext context, DensityBuffer outputBuffer, DensityVolume volume) {
+        public void sampleVolume(@NonNull SamplerContext context, @NonNull DensityBuffer outputBuffer, @NonNull DensityVolume volume) {
             DensitySampler.sampleVolumeNaive(context, outputBuffer, volume, this);
         }
 
         @Override
-        public float sampleValue(SamplerContext context, int blockX, int blockY, int blockZ) {
+        public float sampleValue(@NonNull SamplerContext context, int blockX, int blockY, int blockZ) {
             return this.values[blockX];
         }
     }

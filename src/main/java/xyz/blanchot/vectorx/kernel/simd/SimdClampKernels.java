@@ -9,22 +9,6 @@ import xyz.blanchot.vectorx.kernel.scalar.ScalarClampKernels;
 
 import java.util.Objects;
 
-/**
- * Vector API backend for {@link ClampKernels}. Uses {@code blend} to turn
- * the data-dependent {@code value < min} branch into branch-free lane
- * selection.
- *
- * <p>Since 26.3 the whole density-function pipeline is {@code float} rather
- * than {@code double}, so this uses {@code FloatVector.SPECIES_PREFERRED}:
- * twice the lanes per vector for the same register width.
- *
- * <p>Bit-exactness with {@link ScalarClampKernels}: {@code VectorOperators.MIN}
- * is specified in terms of {@code Math.min}, so it agrees with the scalar
- * reference on NaN and on signed zeros; and {@code compare(LT, min)} is an
- * IEEE-754 comparison, false for NaN exactly like Java's {@code <}. The
- * dispatcher's self-test re-checks both on the actual host at startup and
- * falls back to scalar if they ever disagree.
- */
 public final class SimdClampKernels implements ClampKernels, SelfDescribing {
 
     public static final SimdClampKernels INSTANCE = new SimdClampKernels();

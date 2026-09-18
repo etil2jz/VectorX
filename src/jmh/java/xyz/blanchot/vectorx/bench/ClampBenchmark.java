@@ -19,18 +19,6 @@ import xyz.blanchot.vectorx.kernel.simd.SimdClampKernels;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Benchmarks {@code ClampKernels.clampInPlace}, the element-wise loop in real
- * Minecraft 26.3's
- * {@code net.minecraft.world.level.levelgen.densityfunction.op.ClampFunction$Sampler}.
- * Clamp is used 6 times in the vanilla noise router ({@code NoiseRouterData}).
- * <p>
- * Since 26.3 the pipeline is {@code float}, not {@code double}, so both
- * backends here work on {@code float[]} and the vector backend gets twice the
- * lanes per register it had in 26.2.
- * <p>
- * Run with {@code ./gradlew jmhRun --args="ClampBenchmark"}.
- */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @State(Scope.Thread)

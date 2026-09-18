@@ -14,71 +14,39 @@ import xyz.blanchot.vectorx.dispatch.CarverSkipDispatcher;
 import xyz.blanchot.vectorx.dispatch.ClampDispatcher;
 import xyz.blanchot.vectorx.dispatch.DensityMapDispatcher;
 import xyz.blanchot.vectorx.dispatch.MinMaxDispatcher;
-import xyz.blanchot.vectorx.dispatch.SelectDispatcher;
 import xyz.blanchot.vectorx.dispatch.PackedBitsDispatcher;
+import xyz.blanchot.vectorx.dispatch.SelectDispatcher;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * Fzzy Config adapter: the only class in the project that touches Fzzy Config
- * or TOML. Its sole purpose is producing an immutable {@link VectorXConfig}
- * snapshot via {@link #toSnapshot()} -- everything downstream (dispatchers,
- * their tests) stays free of any GUI/serialization dependency.
- *
- * <p>Registered with {@code RegisterType.CLIENT}: the file is read/created on
- * both sides (client and dedicated server), but the GUI/ModMenu screen only
- * registers where a client actually exists. The config is never synced
- * server-to-client -- this is a per-machine performance setting, not
- * gameplay data.
- *
- * <p>Every field but {@link #diagnostics} is marked
- * {@link Action#RESTART}: the dispatchers resolve their backend once in
- * {@code VectorX.onInitialize()} and the Mixins hold the result in static
- * fields, so a live edit has no effect until the game restarts.
- */
 public class VectorXFzzyConfig extends Config {
 
-    @Comment("Force every kernel to the scalar backend, regardless of the settings below. "
-            + "Overridden at runtime by the vectorized.forceScalar system property.")
+    @Comment("Force every kernel to the scalar backend, regardless of the settings below. Overridden at runtime by the vectorized.forceScalar system property.")
     @RequiresAction(action = Action.RESTART)
     public ValidatedBoolean backendForcedScalar = new ValidatedBoolean(false);
-    @Comment("Backend for DensityFunctions.Mapped. auto = vector if it loads and passes its "
-            + "self-test, scalar fallback otherwise; scalar = force scalar; off = disable the hook.")
+    @Comment("Backend for DensityFunctions.Mapped. auto = vector if it loads and passes its self-test, scalar fallback otherwise; scalar = force scalar; off = disable the hook.")
     @RequiresAction(action = Action.RESTART)
-    public ValidatedEnum<KernelMode> densityFunctionMap =
-            new ValidatedEnum<>(KernelMode.AUTO, ValidatedEnum.WidgetType.POPUP);
+    public ValidatedEnum<KernelMode> densityFunctionMap = new ValidatedEnum<>(KernelMode.AUTO, ValidatedEnum.WidgetType.POPUP);
     @Comment("Backend for DensityFunctions.Clamp. Same auto/scalar/off semantics as densityFunctionMap.")
     @RequiresAction(action = Action.RESTART)
-    public ValidatedEnum<KernelMode> densityFunctionClamp =
-            new ValidatedEnum<>(KernelMode.AUTO, ValidatedEnum.WidgetType.POPUP);
-    @Comment("Backend for BinaryFunction's min/max conditional writes. Only min and max are "
-            + "hooked: add/mul/sub/div are branch-free and measured slower under SIMD than the "
-            + "loop C2 already auto-vectorizes. Same auto/scalar/off semantics as densityFunctionMap.")
+    public ValidatedEnum<KernelMode> densityFunctionClamp = new ValidatedEnum<>(KernelMode.AUTO, ValidatedEnum.WidgetType.POPUP);
+    @Comment("Backend for BinaryFunction's min/max conditional writes. Only min and max are hooked: add/mul/sub/div are branch-free and measured slower under SIMD than the loop C2 already auto-vectorizes. Same auto/scalar/off semantics as densityFunctionMap.")
     @RequiresAction(action = Action.RESTART)
-    public ValidatedEnum<KernelMode> densityFunctionMinMax =
-            new ValidatedEnum<>(KernelMode.AUTO, ValidatedEnum.WidgetType.POPUP);
-    @Comment("Backend for LerpFunction and RangeChoiceFunction, whose per-element branches C2 "
-            + "cannot auto-vectorize. Same auto/scalar/off semantics as densityFunctionMap.")
+    public ValidatedEnum<KernelMode> densityFunctionMinMax = new ValidatedEnum<>(KernelMode.AUTO, ValidatedEnum.WidgetType.POPUP);
+    @Comment("Backend for LerpFunction and RangeChoiceFunction, whose per-element branches C2 cannot auto-vectorize. Same auto/scalar/off semantics as densityFunctionMap.")
     @RequiresAction(action = Action.RESTART)
-    public ValidatedEnum<KernelMode> densityFunctionSelect =
-            new ValidatedEnum<>(KernelMode.AUTO, ValidatedEnum.WidgetType.POPUP);
-    @Comment("Backend for SimpleBitStorage/PalettedContainer unpacking. Same auto/scalar/off "
-            + "semantics as densityFunctionMap.")
+    public ValidatedEnum<KernelMode> densityFunctionSelect = new ValidatedEnum<>(KernelMode.AUTO, ValidatedEnum.WidgetType.POPUP);
+    @Comment("Backend for SimpleBitStorage/PalettedContainer unpacking. Same auto/scalar/off semantics as densityFunctionMap.")
     @RequiresAction(action = Action.RESTART)
-    public ValidatedEnum<KernelMode> packedStorageUnpack =
-            new ValidatedEnum<>(KernelMode.AUTO, ValidatedEnum.WidgetType.POPUP);
-    @Comment("Backend for CanyonWorldCarver's ellipsoid skip test during cave/canyon "
-            + "generation. Same auto/scalar/off semantics as densityFunctionMap.")
+    public ValidatedEnum<KernelMode> packedStorageUnpack = new ValidatedEnum<>(KernelMode.AUTO, ValidatedEnum.WidgetType.POPUP);
+    @Comment("Backend for CanyonWorldCarver's ellipsoid skip test during cave/canyon generation. Same auto/scalar/off semantics as densityFunctionMap.")
     @RequiresAction(action = Action.RESTART)
-    public ValidatedEnum<KernelMode> canyonCarverSkip =
-            new ValidatedEnum<>(KernelMode.AUTO, ValidatedEnum.WidgetType.POPUP);
-    @Comment("Run the scalar-vs-vector differential self-test at startup before trusting a "
-            + "kernel's vector backend. Leave this on unless you have a specific reason not to.")
+    public ValidatedEnum<KernelMode> canyonCarverSkip = new ValidatedEnum<>(KernelMode.AUTO, ValidatedEnum.WidgetType.POPUP);
+    @Comment("Run the scalar-vs-vector differential self-test at startup before trusting a kernel's vector backend. Leave this on unless you have a specific reason not to.")
     @RequiresAction(action = Action.RESTART)
     public ValidatedBoolean selfTest = new ValidatedBoolean(true);
-    @Comment("Log a full diagnostics block at startup (module resolution, per-kernel backend "
-            + "and fallback reason, known mod conflicts). Takes effect immediately.")
+    @Comment("Log a full diagnostics block at startup (module resolution, per-kernel backend and fallback reason, known mod conflicts). Takes effect immediately.")
     public ValidatedBoolean diagnostics = new ValidatedBoolean(false);
 
     public VectorXFzzyConfig() {
