@@ -9,21 +9,7 @@ import xyz.blanchot.vectorx.selftest.PackedBitsSelfTest;
 
 import java.util.Objects;
 
-/**
- * Fail-open resolver for the {@link PackedBitsKernels} backend.
- *
- * <p>Decision order (first match wins), evaluated once at construction time:
- * <ol>
- *   <li>system property {@code vectorized.forceScalar=true} -&gt; scalar;</li>
- *   <li>config {@code backendForcedScalar=true} -&gt; scalar;</li>
- *   <li>{@code jdk.incubator.vector} absent from the boot module layer -&gt; scalar;</li>
- *   <li>{@code SimdPackedBitsKernels} fails to load/link -&gt; scalar;</li>
- *   <li>config {@code packedStorageUnpack} is {@code "scalar"} or {@code "off"} -&gt; scalar;</li>
- *   <li>the differential self-test fails -&gt; scalar;</li>
- *   <li>otherwise -&gt; vector.</li>
- * </ol>
- */
-public final class PackedBitsDispatcher {
+public final class PackedBitsDispatcher implements KernelDispatcher {
 
     public static final String CONFIG_KEY = "packedStorageUnpack";
     private static final String SIMD_CLASS_NAME = "xyz.blanchot.vectorx.kernel.simd.SimdPackedBitsKernels";
@@ -101,13 +87,17 @@ public final class PackedBitsDispatcher {
         return backend;
     }
 
+    @Override
+    public String configKey() {
+        return CONFIG_KEY;
+    }
+
+    @Override
     public boolean isVector() {
         return vector;
     }
 
-    /**
-     * Non-null only when currently on the scalar path.
-     */
+    @Override
     public String disableReason() {
         return disableReason;
     }

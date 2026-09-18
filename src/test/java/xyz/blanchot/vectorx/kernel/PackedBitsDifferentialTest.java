@@ -18,12 +18,6 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/**
- * Differential tests for the standalone reproduction of Minecraft's
- * compact bit-packed storage format. Touches only the real, unmodified
- * {@code net.minecraft.util.SimpleBitStorage} class as ground truth -- it
- * does not inject into it.
- */
 class PackedBitsDifferentialTest {
 
     private static final PackedBitsKernels SCALAR = ScalarPackedBitsKernels.INSTANCE;
@@ -39,8 +33,6 @@ class PackedBitsDifferentialTest {
             long mask = (1L << bits) - 1L;
             int[] source = new int[size];
             for (int i = 0; i < size; i++) {
-                // Bias towards small values (typical palette indices) plus the
-                // occasional max-magnitude value for this bit width.
                 source[i] = random.nextInt(10) == 0 ? (int) mask : random.nextInt((int) Math.min(mask + 1, Integer.MAX_VALUE));
             }
 
@@ -99,9 +91,6 @@ class PackedBitsDifferentialTest {
                 for (int i = 0; i < data.length; i++) {
                     data[i] = random.nextLong();
                 }
-                // Mask off any garbage in the unused tail bits of the final word,
-                // mirroring what a real packer would leave there (zeros), so the
-                // only thing under test is the extraction logic itself.
                 if (data.length > 0) {
                     int written = (data.length - 1) * (int) valuesPerLongCalc;
                     int remaining = size - written;
@@ -122,19 +111,6 @@ class PackedBitsDifferentialTest {
         }
     }
 
-    /**
-     * {@link #SIZES} is a fixed list, so whether it actually exercises
-     * {@code SimdPackedBitsKernels}'s vectorized loop body (as opposed to
-     * only ever hitting its scalar tail) depends on this machine's vector
-     * lane width -- a size that lands exactly on a chunk boundary on one
-     * platform may fall entirely within the tail on a platform with wider
-     * lanes. This test computes the actual chunk size
-     * {@code SimdPackedBitsKernels} uses for bits 8/16/32 from the runtime
-     * species directly (the same construction the kernel itself uses) and
-     * targets sizes immediately below, at, and above one and two chunk
-     * boundaries, so the vectorized loop body is provably exercised
-     * regardless of the platform this test happens to run on.
-     */
     @Test
     void vectorPathBoundariesAreExercisedRegardlessOfPlatformLaneWidth() {
         VectorSpecies<Integer> intSpecies = IntVector.SPECIES_PREFERRED;
@@ -142,11 +118,11 @@ class PackedBitsDifferentialTest {
         int shortChunk = VectorSpecies.of(short.class, intSpecies.vectorShape()).length();
         int intChunk = intSpecies.length();
 
-        checkAroundChunkBoundaries(4, 16); // one full long always yields exactly 16 4-bit values
-        checkAroundChunkBoundaries(5, 64 / 5); // 12 values/long, straddles the LANES_4=8 sub-chunk boundary
-        checkAroundChunkBoundaries(6, 64 / 6); // 10 values/long
-        checkAroundChunkBoundaries(7, 64 / 7); // 9 values/long
-        checkAroundChunkBoundaries(15, 64 / 15); // 4 values/long, the global palette width
+        checkAroundChunkBoundaries(4, 16);
+        checkAroundChunkBoundaries(5, 64 / 5);
+        checkAroundChunkBoundaries(6, 64 / 6);
+        checkAroundChunkBoundaries(7, 64 / 7);
+        checkAroundChunkBoundaries(15, 64 / 15);
         checkAroundChunkBoundaries(8, byteChunk);
         checkAroundChunkBoundaries(16, shortChunk);
         checkAroundChunkBoundaries(32, intChunk);
@@ -162,7 +138,7 @@ class PackedBitsDifferentialTest {
             sizes.add(boundary);
             sizes.add(boundary + 1);
         }
-        sizes.add(5 * chunkSize + 3); // several full chunks plus a non-trivial tail
+        sizes.add(5 * chunkSize + 3);
 
         Random random = new Random(bits * 7_919L);
         long mask = (1L << bits) - 1L;
@@ -184,21 +160,11 @@ class PackedBitsDifferentialTest {
                 expected[i] = reference.get(i);
             }
 
-            assertArrayEquals(expected, vectorOut,
-                    () -> "vector mismatch at chunk boundary, bits=" + bits + " size=" + size + " chunkSize=" + chunkSize);
-            assertArrayEquals(expected, scalarOut,
-                    () -> "scalar mismatch at chunk boundary, bits=" + bits + " size=" + size);
+            assertArrayEquals(expected, vectorOut, () -> "vector mismatch at chunk boundary, bits=" + bits + " size=" + size + " chunkSize=" + chunkSize);
+            assertArrayEquals(expected, scalarOut, () -> "scalar mismatch at chunk boundary, bits=" + bits + " size=" + size);
         }
     }
 
-    /**
-     * {@code SimpleBitStorageMixin.vectorx$getAll} reuses the {@code unpack}
-     * kernel and then dispatches to the consumer from that array in index
-     * order, on the assumption that real {@code SimpleBitStorage.getAll}
-     * calls its consumer in exactly that order. This locks that assumption
-     * down against the real, unmodified class, independent of the Mixin
-     * (which JUnit's plain classpath never applies).
-     */
     @ParameterizedTest
     @ValueSource(ints = {1, 4, 5, 8, 15, 16, 32})
     void getAllCallOrderMatchesUnpackArrayOrder(int bits) {
@@ -218,8 +184,7 @@ class PackedBitsDifferentialTest {
             List<Integer> viaGetAll = new ArrayList<>(size);
             reference.getAll(viaGetAll::add);
 
-            assertArrayEquals(unpacked, viaGetAll.stream().mapToInt(Integer::intValue).toArray(),
-                    () -> "getAll() call order diverges from unpack() array order, bits=" + bits + " size=" + size);
+            assertArrayEquals(unpacked, viaGetAll.stream().mapToInt(Integer::intValue).toArray(), () -> "getAll() call order diverges from unpack() array order, bits=" + bits + " size=" + size);
         }
     }
 

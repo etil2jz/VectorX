@@ -19,21 +19,6 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.function.IntConsumer;
 
-/**
- * Benchmarks the shape used by {@code SimpleBitStorage.getAll(IntConsumer)}
- * (reached from {@code PalettedContainer.count()}, hit on every chunk-section
- * load once its palette holds more than one entry): Mojang's inline
- * mask/shift-then-dispatch loop against unpacking through the
- * already-vectorized {@code PackedBitsKernels.unpack} kernel into a scratch
- * {@code int[]} and then dispatching from that array.
- * <p>
- * Both variants call the same {@code IntConsumer} once per element in the
- * same order -- the only difference under test is how the value reaches that
- * call, matching exactly what a {@code getAll} Mixin would change and
- * nothing else.
- * <p>
- * Run with {@code ./gradlew jmhRun --args="PackedBitsGetAllBenchmark"}.
- */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @State(Scope.Thread)
@@ -74,9 +59,6 @@ public class PackedBitsGetAllBenchmark {
         vectorBackend = SimdPackedBitsKernels.INSTANCE;
     }
 
-    /**
-     * Verbatim algorithm from {@code SimpleBitStorage.getAll(IntConsumer)}.
-     */
     private void vanillaGetAll(IntConsumer output) {
         long mask = (1L << bits) - 1L;
         int valuesPerLong = 64 / bits;

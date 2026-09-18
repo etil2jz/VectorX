@@ -5,11 +5,6 @@ import xyz.blanchot.vectorx.kernel.SelfDescribing;
 
 import java.util.Objects;
 
-/**
- * Reference scalar implementation of {@link PackedBitsKernels}. Correct for
- * every valid bit width (1..32); the vector backend delegates to this one
- * for widths it does not vectorize.
- */
 public final class ScalarPackedBitsKernels implements PackedBitsKernels, SelfDescribing {
 
     public static final ScalarPackedBitsKernels INSTANCE = new ScalarPackedBitsKernels();
@@ -33,8 +28,7 @@ public final class ScalarPackedBitsKernels implements PackedBitsKernels, SelfDes
         long mask = (1L << bits) - 1L;
         int requiredLongs = (size + valuesPerLong - 1) / valuesPerLong;
         if (data.length < requiredLongs) {
-            throw new IllegalArgumentException("data too short: need at least " + requiredLongs
-                    + " longs for size=" + size + " bits=" + bits + ", got " + data.length);
+            throw new IllegalArgumentException("data too short: need at least " + requiredLongs + " longs for size=" + size + " bits=" + bits + ", got " + data.length);
         }
 
         int written = 0;
@@ -66,8 +60,7 @@ public final class ScalarPackedBitsKernels implements PackedBitsKernels, SelfDes
         long mask = (1L << bits) - 1L;
         int requiredLongs = (size + valuesPerLong - 1) / valuesPerLong;
         if (output.length < requiredLongs) {
-            throw new IllegalArgumentException("output too short: need at least " + requiredLongs
-                    + " longs for size=" + size + " bits=" + bits + ", got " + output.length);
+            throw new IllegalArgumentException("output too short: need at least " + requiredLongs + " longs for size=" + size + " bits=" + bits + ", got " + output.length);
         }
 
         int written = 0;

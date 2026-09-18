@@ -6,13 +6,6 @@ import xyz.blanchot.vectorx.kernel.SelfDescribing;
 
 import java.util.Objects;
 
-/**
- * Reference scalar implementation of {@link DensityMapKernels}. Each formula
- * below was copied from real Minecraft 26.2's
- * {@code DensityFunctions.Mapped#transform(Type, double)} and
- * {@code net.minecraft.util.Mth#clamp(double, double, double)} (the latter
- * for the SQUEEZE case), not re-derived from memory.
- */
 public final class ScalarDensityMapKernels implements DensityMapKernels, SelfDescribing {
 
     public static final ScalarDensityMapKernels INSTANCE = new ScalarDensityMapKernels();
@@ -20,27 +13,47 @@ public final class ScalarDensityMapKernels implements DensityMapKernels, SelfDes
     private ScalarDensityMapKernels() {
     }
 
-    public static double transform(DensityMapOp op, double x) {
+    public static float leakyReLU(float x, float negativeFactor) {
+        return x > 0.0F ? x : x * negativeFactor;
+    }
+
+    private static float clamp(float x, float min, float max) {
+        return x < min ? min : Math.min(x, max);
+    }
+
+    public static float squeeze(float x) {
+        float c = clamp(x, -1.0F, 1.0F);
+        return c / 2.0F - c * c * c / 24.0F;
+    }
+
+    public static float transform(DensityMapOp op, float x) {
         return switch (op) {
             case ABS -> Math.abs(x);
             case SQUARE -> x * x;
             case CUBE -> x * x * x;
-            case HALF_NEGATIVE -> x > 0.0 ? x : x * 0.5;
-            case QUARTER_NEGATIVE -> x > 0.0 ? x : x * 0.25;
-            case INVERT -> 1.0 / x;
-            case SQUEEZE -> {
-                double c = x < -1.0 ? -1.0 : Math.min(x, 1.0);
-                yield c / 2.0 - c * c * c / 24.0;
-            }
+            case HALF_NEGATIVE -> leakyReLU(x, 0.5F);
+            case QUARTER_NEGATIVE -> leakyReLU(x, 0.25F);
+            case RECIPROCAL -> 1.0F / x;
+            case SQUEEZE -> squeeze(x);
         };
     }
 
     @Override
-    public void apply(double[] values, DensityMapOp op) {
+    public void apply(float[] values, int length, DensityMapOp op) {
         Objects.requireNonNull(values, "values");
         Objects.requireNonNull(op, "op");
-        for (int i = 0; i < values.length; i++) {
+        Objects.checkFromIndexSize(0, length, values.length);
+        for (int i = 0; i < length; i++) {
             values[i] = transform(op, values[i]);
+        }
+    }
+
+    @Override
+    public void leakyReLU(float[] values, int length, float negativeFactor) {
+        Objects.requireNonNull(values, "values");
+        Objects.checkFromIndexSize(0, length, values.length);
+        for (int i = 0; i < length; i++) {
+            values[i] = leakyReLU(values[i], negativeFactor);
         }
     }
 

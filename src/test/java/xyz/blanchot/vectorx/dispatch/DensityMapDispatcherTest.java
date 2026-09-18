@@ -14,8 +14,6 @@ class DensityMapDispatcherTest {
 
     @Test
     void resolvesToVectorByDefaultOnThisTestJvm() {
-        // The test task runs with --add-modules=jdk.incubator.vector, so "auto"
-        // should resolve to the vector backend and pass its self-test.
         DensityMapDispatcher dispatcher = new DensityMapDispatcher(VectorXConfig.defaults(), VectorXLog.noop());
         assertTrue(dispatcher.isVector());
         assertNull(dispatcher.disableReason());
@@ -52,8 +50,7 @@ class DensityMapDispatcherTest {
 
     @Test
     void perKernelScalarConfigDisablesOnlyThisKernel() {
-        VectorXConfig config =
-                VectorXConfig.defaults().withKernelMode(DensityMapDispatcher.CONFIG_KEY, KernelMode.SCALAR);
+        VectorXConfig config = VectorXConfig.defaults().withKernelMode(DensityMapDispatcher.CONFIG_KEY, KernelMode.SCALAR);
         DensityMapDispatcher dispatcher = new DensityMapDispatcher(config, VectorXLog.noop());
 
         assertFalse(dispatcher.isVector());

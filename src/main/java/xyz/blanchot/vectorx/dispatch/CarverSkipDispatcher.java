@@ -9,21 +9,7 @@ import xyz.blanchot.vectorx.selftest.CarverSkipSelfTest;
 
 import java.util.Objects;
 
-/**
- * Fail-open resolver for the {@link CarverSkipKernels} backend.
- *
- * <p>Decision order (first match wins), evaluated once at construction time:
- * <ol>
- *   <li>system property {@code vectorized.forceScalar=true} -&gt; scalar;</li>
- *   <li>config {@code backendForcedScalar=true} -&gt; scalar;</li>
- *   <li>{@code jdk.incubator.vector} absent from the boot module layer -&gt; scalar;</li>
- *   <li>{@code SimdCarverSkipKernels} fails to load/link -&gt; scalar;</li>
- *   <li>config {@code canyonCarverSkip} is {@code "scalar"} or {@code "off"} -&gt; scalar;</li>
- *   <li>the differential self-test fails -&gt; scalar;</li>
- *   <li>otherwise -&gt; vector.</li>
- * </ol>
- */
-public final class CarverSkipDispatcher {
+public final class CarverSkipDispatcher implements KernelDispatcher {
 
     public static final String CONFIG_KEY = "canyonCarverSkip";
     private static final String SIMD_CLASS_NAME = "xyz.blanchot.vectorx.kernel.simd.SimdCarverSkipKernels";
@@ -101,13 +87,17 @@ public final class CarverSkipDispatcher {
         return backend;
     }
 
+    @Override
+    public String configKey() {
+        return CONFIG_KEY;
+    }
+
+    @Override
     public boolean isVector() {
         return vector;
     }
 
-    /**
-     * Non-null only when currently on the scalar path.
-     */
+    @Override
     public String disableReason() {
         return disableReason;
     }

@@ -9,21 +9,7 @@ import xyz.blanchot.vectorx.selftest.DensityMapSelfTest;
 
 import java.util.Objects;
 
-/**
- * Fail-open resolver for the {@link DensityMapKernels} backend.
- *
- * <p>Decision order (first match wins), evaluated once at construction time:
- * <ol>
- *   <li>system property {@code vectorized.forceScalar=true} -&gt; scalar;</li>
- *   <li>config {@code backendForcedScalar=true} -&gt; scalar;</li>
- *   <li>{@code jdk.incubator.vector} absent from the boot module layer -&gt; scalar;</li>
- *   <li>{@code SimdDensityMapKernels} fails to load/link -&gt; scalar;</li>
- *   <li>config {@code densityFunctionMap} is {@code "scalar"} or {@code "off"} -&gt; scalar;</li>
- *   <li>the differential self-test fails -&gt; scalar;</li>
- *   <li>otherwise -&gt; vector.</li>
- * </ol>
- */
-public final class DensityMapDispatcher {
+public final class DensityMapDispatcher implements KernelDispatcher {
 
     public static final String CONFIG_KEY = "densityFunctionMap";
     private static final String SIMD_CLASS_NAME = "xyz.blanchot.vectorx.kernel.simd.SimdDensityMapKernels";
@@ -101,13 +87,17 @@ public final class DensityMapDispatcher {
         return backend;
     }
 
+    @Override
+    public String configKey() {
+        return CONFIG_KEY;
+    }
+
+    @Override
     public boolean isVector() {
         return vector;
     }
 
-    /**
-     * Non-null only when currently on the scalar path.
-     */
+    @Override
     public String disableReason() {
         return disableReason;
     }

@@ -5,12 +5,6 @@ import xyz.blanchot.vectorx.kernel.SelfDescribing;
 
 import java.util.Objects;
 
-/**
- * Reference scalar implementation of {@link ClampKernels}. The formula below
- * was copied from real Minecraft 26.2's
- * {@code net.minecraft.util.Mth#clamp(double, double, double)}, not
- * re-derived from memory: {@code value < min ? min : Math.min(value, max)}.
- */
 public final class ScalarClampKernels implements ClampKernels, SelfDescribing {
 
     public static final ScalarClampKernels INSTANCE = new ScalarClampKernels();
@@ -18,20 +12,21 @@ public final class ScalarClampKernels implements ClampKernels, SelfDescribing {
     private ScalarClampKernels() {
     }
 
-    public static double transform(double value, double min, double max) {
+    public static float transform(float value, float min, float max) {
         return value < min ? min : Math.min(value, max);
     }
 
     @Override
-    public void clampInPlace(double[] values, double min, double max) {
+    public void clampInPlace(float[] values, int length, float min, float max) {
         Objects.requireNonNull(values, "values");
-        for (int i = 0; i < values.length; i++) {
+        Objects.checkFromIndexSize(0, length, values.length);
+        for (int i = 0; i < length; i++) {
             values[i] = transform(values[i], min, max);
         }
     }
 
     @Override
     public String describe() {
-        return "scalar reference backend for element-wise double[] clamp";
+        return "scalar reference backend for element-wise float[] clamp";
     }
 }

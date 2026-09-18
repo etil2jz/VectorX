@@ -22,24 +22,6 @@ import org.openjdk.jmh.annotations.Warmup;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Exploratory prototype (NOT a shipped kernel) validating whether
- * {@code CanyonWorldCarver}'s {@code shouldSkip} geometry test -- the inner
- * Y-loop of {@code WorldCarver.carveEllipsoid} -- is worth vectorizing.
- * {@code xd}/{@code zd} are loop-invariant across the Y sweep for a fixed
- * (x, z) column, so this benchmarks the realistic per-column shape: one
- * {@code (xd, zd)} pair, {@code yLength} values of {@code worldY}.
- * <p>
- * {@code yLength} values come from reading the actual vanilla
- * {@code canyon.json} config (yScale=3.0, thickness trapezoid(0,6,plateau
- * 2), radius factors ~0.75-1.0): typical vertical radius per carve step
- * ranges roughly 4-13 blocks depending on position along the tunnel,
- * giving Y-loop lengths roughly 10-28. The swept values below bracket that
- * range plus the smaller end (matching cave carver's ~5-11 range) for
- * comparison.
- * <p>
- * Run with {@code ./gradlew jmhRun --args="CarverShouldSkipBenchmark"}.
- */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @State(Scope.Thread)
@@ -49,8 +31,7 @@ import java.util.concurrent.TimeUnit;
 public class CarverShouldSkipBenchmark {
 
     private static final VectorSpecies<Double> DSPECIES = DoubleVector.SPECIES_PREFERRED;
-    private static final VectorSpecies<Float> FSPECIES =
-            VectorSpecies.of(float.class, VectorShape.forBitSize(DSPECIES.length() * Float.SIZE));
+    private static final VectorSpecies<Float> FSPECIES = VectorSpecies.of(float.class, VectorShape.forBitSize(DSPECIES.length() * Float.SIZE));
     private static final DoubleVector LANE_OFFSETS = laneOffsets();
     @Param({"6", "10", "16", "20", "25"})
     public int yLength;
@@ -74,8 +55,6 @@ public class CarverShouldSkipBenchmark {
     @Setup(Level.Trial)
     public void setup() {
         Random random = new Random(7);
-        // Inside the horizontal ellipse (xd^2 + zd^2 < 1), as carveEllipsoid
-        // guarantees before entering the Y-loop.
         xd = random.nextDouble() * 0.5;
         zd = random.nextDouble() * 0.5;
         verticalRadius = yLength / 2.0 - 1.0;
@@ -89,7 +68,6 @@ public class CarverShouldSkipBenchmark {
         }
         skipOut = new boolean[maxY - minY];
 
-        // Correctness check: vector must match scalar before trusting timings.
         boolean[] scalarResult = scalarShouldSkip();
         boolean[] vectorResult = vectorShouldSkip();
         for (int i = 0; i < scalarResult.length; i++) {
@@ -100,13 +78,6 @@ public class CarverShouldSkipBenchmark {
         }
     }
 
-    /**
-     * Same arithmetic as {@code CanyonWorldCarver.shouldSkip}, walked in
-     * ascending {@code worldY} order (matching {@link #vectorShouldSkip}) so
-     * the two benchmarks' output arrays line up index-for-index -- the set
-     * of skip results a real carve call would compute is identical either
-     * way, since each worldY's result is independent of iteration order.
-     */
     @Benchmark
     public boolean[] scalarShouldSkip() {
         double horizSum = xd * xd + zd * zd;
@@ -126,12 +97,6 @@ public class CarverShouldSkipBenchmark {
         int lanes = DSPECIES.length();
         int bound = DSPECIES.loopBound(n);
 
-        // True div, not a precomputed-reciprocal multiply -- matches the
-        // shipped SimdCarverSkipKernels exactly, so this benchmark measures
-        // the computation that actually ships, not a cheaper stand-in.
-        // Ascending worldY order internally (independent per lane; only the
-        // *set* of skip results matters, not vanilla's descending iteration
-        // order), starting at minY + 1 .. maxY.
         int i = 0;
         for (; i < bound; i += lanes) {
             int worldYBase = minY + 1 + i;

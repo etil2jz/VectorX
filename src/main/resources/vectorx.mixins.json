@@ -3,12 +3,16 @@
   "package": "xyz.blanchot.vectorx.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
+    "BinaryFunctionMinMaxMixin",
     "CanyonWorldCarverMixin",
-    "DensityFunctionsClampMixin",
-    "DensityFunctionsMappedMixin",
+    "ClampFunctionSamplerMixin",
+    "DensityBufferAccessor",
+    "LerpFunctionSamplerMixin",
     "PalettedContainerMixin",
+    "RangeChoiceFunctionConstSamplerMixin",
+    "RangeChoiceFunctionSamplerMixin",
     "SimpleBitStorageMixin",
-    "WorldCarverAccessor"
+    "UnaryFunctionSamplerMixin"
   ],
   "injectors": {
     "defaultRequire": 0
