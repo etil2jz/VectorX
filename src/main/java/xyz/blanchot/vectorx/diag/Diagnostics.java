@@ -37,7 +37,7 @@ public final class Diagnostics {
 
         sb.append("  known compatibility entries: ").append(registry.knownConflicts().size()).append('\n');
         for (String modId : loadedModIds) {
-            registry.conflictingKernel(modId).ifPresent(kernel -> sb.append("  potential conflict: mod ").append(modId).append(" is known to transform the ").append(kernel).append(" hook\n"));
+            registry.conflictingKernels(modId).ifPresent(kernels -> sb.append("  potential conflict: mod ").append(modId).append(" is known to transform the ").append(String.join(", ", kernels)).append(kernels.size() == 1 ? " hook\n" : " hooks\n"));
         }
 
         return sb.toString();
