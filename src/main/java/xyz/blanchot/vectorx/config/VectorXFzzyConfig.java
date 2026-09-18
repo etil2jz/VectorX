@@ -13,6 +13,8 @@ import xyz.blanchot.vectorx.VectorXConfig.KernelMode;
 import xyz.blanchot.vectorx.dispatch.CarverSkipDispatcher;
 import xyz.blanchot.vectorx.dispatch.ClampDispatcher;
 import xyz.blanchot.vectorx.dispatch.DensityMapDispatcher;
+import xyz.blanchot.vectorx.dispatch.MinMaxDispatcher;
+import xyz.blanchot.vectorx.dispatch.SelectDispatcher;
 import xyz.blanchot.vectorx.dispatch.PackedBitsDispatcher;
 
 import java.util.LinkedHashMap;
@@ -50,6 +52,17 @@ public class VectorXFzzyConfig extends Config {
     @RequiresAction(action = Action.RESTART)
     public ValidatedEnum<KernelMode> densityFunctionClamp =
             new ValidatedEnum<>(KernelMode.AUTO, ValidatedEnum.WidgetType.POPUP);
+    @Comment("Backend for BinaryFunction's min/max conditional writes. Only min and max are "
+            + "hooked: add/mul/sub/div are branch-free and measured slower under SIMD than the "
+            + "loop C2 already auto-vectorizes. Same auto/scalar/off semantics as densityFunctionMap.")
+    @RequiresAction(action = Action.RESTART)
+    public ValidatedEnum<KernelMode> densityFunctionMinMax =
+            new ValidatedEnum<>(KernelMode.AUTO, ValidatedEnum.WidgetType.POPUP);
+    @Comment("Backend for LerpFunction and RangeChoiceFunction, whose per-element branches C2 "
+            + "cannot auto-vectorize. Same auto/scalar/off semantics as densityFunctionMap.")
+    @RequiresAction(action = Action.RESTART)
+    public ValidatedEnum<KernelMode> densityFunctionSelect =
+            new ValidatedEnum<>(KernelMode.AUTO, ValidatedEnum.WidgetType.POPUP);
     @Comment("Backend for SimpleBitStorage/PalettedContainer unpacking. Same auto/scalar/off "
             + "semantics as densityFunctionMap.")
     @RequiresAction(action = Action.RESTART)
@@ -76,6 +89,8 @@ public class VectorXFzzyConfig extends Config {
         Map<String, KernelMode> modes = new LinkedHashMap<>();
         modes.put(DensityMapDispatcher.CONFIG_KEY, densityFunctionMap.get());
         modes.put(ClampDispatcher.CONFIG_KEY, densityFunctionClamp.get());
+        modes.put(MinMaxDispatcher.CONFIG_KEY, densityFunctionMinMax.get());
+        modes.put(SelectDispatcher.CONFIG_KEY, densityFunctionSelect.get());
         modes.put(PackedBitsDispatcher.CONFIG_KEY, packedStorageUnpack.get());
         modes.put(CarverSkipDispatcher.CONFIG_KEY, canyonCarverSkip.get());
         return VectorXConfig.of(backendForcedScalar.get(), selfTest.get(), diagnostics.get(), modes);

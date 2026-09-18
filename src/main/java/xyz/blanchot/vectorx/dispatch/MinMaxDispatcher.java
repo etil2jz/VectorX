@@ -3,47 +3,57 @@ package xyz.blanchot.vectorx.dispatch;
 import xyz.blanchot.vectorx.VectorXConfig;
 import xyz.blanchot.vectorx.VectorXConfig.KernelMode;
 import xyz.blanchot.vectorx.diag.VectorXLog;
-import xyz.blanchot.vectorx.kernel.PackedBitsKernels;
-import xyz.blanchot.vectorx.kernel.scalar.ScalarPackedBitsKernels;
-import xyz.blanchot.vectorx.selftest.PackedBitsSelfTest;
+import xyz.blanchot.vectorx.kernel.DensityBinaryKernels;
+import xyz.blanchot.vectorx.kernel.scalar.ScalarDensityBinaryKernels;
+import xyz.blanchot.vectorx.selftest.DensityBinarySelfTest;
 
 import java.util.Objects;
 
 /**
- * Fail-open resolver for the {@link PackedBitsKernels} backend.
+ * Fail-open resolver for the {@link DensityBinaryKernels} backend.
  *
  * <p>Decision order (first match wins), evaluated once at construction time:
  * <ol>
  *   <li>system property {@code vectorized.forceScalar=true} -&gt; scalar;</li>
  *   <li>config {@code backendForcedScalar=true} -&gt; scalar;</li>
  *   <li>{@code jdk.incubator.vector} absent from the boot module layer -&gt; scalar;</li>
- *   <li>{@code SimdPackedBitsKernels} fails to load/link -&gt; scalar;</li>
- *   <li>config {@code packedStorageUnpack} is {@code "scalar"} or {@code "off"} -&gt; scalar;</li>
+ *   <li>{@code SimdDensityBinaryKernels} fails to load/link -&gt; scalar;</li>
+ *   <li>config {@code densityFunctionMinMax} is {@code "scalar"} or {@code "off"} -&gt; scalar;</li>
  *   <li>the differential self-test fails -&gt; scalar;</li>
  *   <li>otherwise -&gt; vector.</li>
  * </ol>
+ *
+ * <p>Named for what it actually gates. {@link DensityBinaryKernels} models all
+ * six of {@code BinaryFunction}'s ops so the differential tests can cover the
+ * whole contract, but only {@code MIN} and {@code MAX} are reachable from a
+ * Mixin: {@code ADD}, {@code SUB}, {@code MUL} and {@code DIV} are branch-free
+ * loops that C2 already auto-vectorizes, and measuring them showed the vector
+ * backend at 0.74x-0.89x of scalar at whole-chunk buffer sizes -- a loss, not
+ * a gain (see {@code bench.DensityBinaryBenchmark}). The conditional writes in
+ * {@code MIN}/{@code MAX} are the opposite case, at 41x-97x net of the
+ * benchmark's copy floor.
  */
-public final class PackedBitsDispatcher implements KernelDispatcher {
+public final class MinMaxDispatcher implements KernelDispatcher {
 
-    public static final String CONFIG_KEY = "packedStorageUnpack";
-    private static final String SIMD_CLASS_NAME = "xyz.blanchot.vectorx.kernel.simd.SimdPackedBitsKernels";
+    public static final String CONFIG_KEY = "densityFunctionMinMax";
+    private static final String SIMD_CLASS_NAME = "xyz.blanchot.vectorx.kernel.simd.SimdDensityBinaryKernels";
     private static final String SIMD_INSTANCE_FIELD = "INSTANCE";
 
-    private final PackedBitsKernels backend;
+    private final DensityBinaryKernels backend;
     private final boolean vector;
     private final String disableReason;
 
-    public PackedBitsDispatcher(VectorXConfig config, VectorXLog log) {
-        this(config, log, PackedBitsDispatcher.class.getClassLoader());
+    public MinMaxDispatcher(VectorXConfig config, VectorXLog log) {
+        this(config, log, MinMaxDispatcher.class.getClassLoader());
     }
 
-    PackedBitsDispatcher(VectorXConfig config, VectorXLog log, ClassLoader loader) {
+    MinMaxDispatcher(VectorXConfig config, VectorXLog log, ClassLoader loader) {
         Objects.requireNonNull(config, "config");
         Objects.requireNonNull(log, "log");
 
         String reason = globalDisableReason(config);
         if (reason == null) {
-            PackedBitsKernels candidate = tryLoadVectorBackend(loader, log);
+            DensityBinaryKernels candidate = tryLoadVectorBackend(loader, log);
             if (candidate == null) {
                 reason = "failed to load " + SIMD_CLASS_NAME;
             } else {
@@ -51,7 +61,7 @@ public final class PackedBitsDispatcher implements KernelDispatcher {
                 if (mode == KernelMode.SCALAR || mode == KernelMode.OFF) {
                     reason = "config " + CONFIG_KEY + "=\"" + mode.configValue() + "\"";
                 } else if (config.selfTestEnabled()) {
-                    PackedBitsSelfTest.Result result = PackedBitsSelfTest.run(ScalarPackedBitsKernels.INSTANCE, candidate);
+                    DensityBinarySelfTest.Result result = DensityBinarySelfTest.run(ScalarDensityBinaryKernels.INSTANCE, candidate);
                     if (!result.passed()) {
                         reason = "self-test failed: " + result.failureDescription();
                         log.warn("kernel " + CONFIG_KEY + " falling back to scalar (" + reason + ")");
@@ -67,7 +77,7 @@ public final class PackedBitsDispatcher implements KernelDispatcher {
             }
         }
 
-        this.backend = ScalarPackedBitsKernels.INSTANCE;
+        this.backend = ScalarDensityBinaryKernels.INSTANCE;
         this.vector = false;
         this.disableReason = reason;
         log.info(CONFIG_KEY + " using scalar backend (" + reason + ")");
@@ -86,18 +96,18 @@ public final class PackedBitsDispatcher implements KernelDispatcher {
         return null;
     }
 
-    private static PackedBitsKernels tryLoadVectorBackend(ClassLoader loader, VectorXLog log) {
+    private static DensityBinaryKernels tryLoadVectorBackend(ClassLoader loader, VectorXLog log) {
         try {
             Class<?> simdClass = Class.forName(SIMD_CLASS_NAME, true, loader);
             Object instance = simdClass.getField(SIMD_INSTANCE_FIELD).get(null);
-            return (PackedBitsKernels) instance;
+            return (DensityBinaryKernels) instance;
         } catch (LinkageError | ReflectiveOperationException | ClassCastException e) {
             log.warn(CONFIG_KEY + ": failed to load " + SIMD_CLASS_NAME + ": " + e);
             return null;
         }
     }
 
-    public PackedBitsKernels backend() {
+    public DensityBinaryKernels backend() {
         return backend;
     }
 

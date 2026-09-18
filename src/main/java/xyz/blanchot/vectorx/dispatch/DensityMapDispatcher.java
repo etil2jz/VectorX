@@ -23,7 +23,7 @@ import java.util.Objects;
  *   <li>otherwise -&gt; vector.</li>
  * </ol>
  */
-public final class DensityMapDispatcher {
+public final class DensityMapDispatcher implements KernelDispatcher {
 
     public static final String CONFIG_KEY = "densityFunctionMap";
     private static final String SIMD_CLASS_NAME = "xyz.blanchot.vectorx.kernel.simd.SimdDensityMapKernels";
@@ -101,6 +101,12 @@ public final class DensityMapDispatcher {
         return backend;
     }
 
+    @Override
+    public String configKey() {
+        return CONFIG_KEY;
+    }
+
+    @Override
     public boolean isVector() {
         return vector;
     }
@@ -108,6 +114,7 @@ public final class DensityMapDispatcher {
     /**
      * Non-null only when currently on the scalar path.
      */
+    @Override
     public String disableReason() {
         return disableReason;
     }

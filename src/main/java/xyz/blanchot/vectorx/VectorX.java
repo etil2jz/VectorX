@@ -14,10 +14,15 @@ import xyz.blanchot.vectorx.diag.VectorXLog;
 import xyz.blanchot.vectorx.dispatch.CarverSkipDispatcher;
 import xyz.blanchot.vectorx.dispatch.ClampDispatcher;
 import xyz.blanchot.vectorx.dispatch.DensityMapDispatcher;
+import xyz.blanchot.vectorx.dispatch.KernelDispatcher;
+import xyz.blanchot.vectorx.dispatch.MinMaxDispatcher;
+import xyz.blanchot.vectorx.dispatch.SelectDispatcher;
 import xyz.blanchot.vectorx.dispatch.PackedBitsDispatcher;
 import xyz.blanchot.vectorx.kernel.CarverSkipKernels;
 import xyz.blanchot.vectorx.kernel.ClampKernels;
+import xyz.blanchot.vectorx.kernel.DensityBinaryKernels;
 import xyz.blanchot.vectorx.kernel.DensityMapKernels;
+import xyz.blanchot.vectorx.kernel.DensitySelectKernels;
 import xyz.blanchot.vectorx.kernel.PackedBitsKernels;
 
 import java.util.ArrayList;
@@ -42,6 +47,8 @@ public class VectorX implements ModInitializer {
     private static volatile ClampKernels activeClampKernels;
     private static volatile PackedBitsKernels activePackedBitsKernels;
     private static volatile CarverSkipKernels activeCarverSkipKernels;
+    private static volatile DensityBinaryKernels activeMinMaxKernels;
+    private static volatile DensitySelectKernels activeSelectKernels;
 
     /**
      * The resolved {@code densityFunctionMap} backend, consulted by
@@ -95,6 +102,33 @@ public class VectorX implements ModInitializer {
         return k;
     }
 
+    /**
+     * The resolved {@code densityFunctionMinMax} backend, consulted by
+     * {@code mixin.BinaryFunctionSamplerMixin}. Available once
+     * {@link #onInitialize()} has run.
+     */
+    public static DensityBinaryKernels minMax() {
+        DensityBinaryKernels k = activeMinMaxKernels;
+        if (k == null) {
+            throw new IllegalStateException("VectorX.minMax() called before onInitialize()");
+        }
+        return k;
+    }
+
+    /**
+     * The resolved {@code densityFunctionSelect} backend, consulted by
+     * {@code mixin.LerpFunctionSamplerMixin} and
+     * {@code mixin.RangeChoiceFunctionSamplerMixin}. Available once
+     * {@link #onInitialize()} has run.
+     */
+    public static DensitySelectKernels select() {
+        DensitySelectKernels k = activeSelectKernels;
+        if (k == null) {
+            throw new IllegalStateException("VectorX.select() called before onInitialize()");
+        }
+        return k;
+    }
+
     @Override
     public void onInitialize() {
         VectorXLog log = new Slf4jLog(LOGGER);
@@ -114,15 +148,24 @@ public class VectorX implements ModInitializer {
         CarverSkipDispatcher carverSkipDispatcher = new CarverSkipDispatcher(config, log);
         activeCarverSkipKernels = carverSkipDispatcher.backend();
 
-        LOGGER.info(Diagnostics.oneLineSummary(densityMapDispatcher, clampDispatcher, packedBitsDispatcher, carverSkipDispatcher));
+        MinMaxDispatcher minMaxDispatcher = new MinMaxDispatcher(config, log);
+        activeMinMaxKernels = minMaxDispatcher.backend();
+
+        SelectDispatcher selectDispatcher = new SelectDispatcher(config, log);
+        activeSelectKernels = selectDispatcher.backend();
+
+        List<KernelDispatcher> dispatchers = List.of(densityMapDispatcher, clampDispatcher,
+                minMaxDispatcher, selectDispatcher, packedBitsDispatcher, carverSkipDispatcher);
+
+        LOGGER.info(Diagnostics.oneLineSummary(dispatchers));
 
         if (config.diagnosticsEnabled()) {
             List<String> loadedModIds = new ArrayList<>();
             for (ModContainer mod : FabricLoader.getInstance().getAllMods()) {
                 loadedModIds.add(mod.getMetadata().getId());
             }
-            LOGGER.info(Diagnostics.fullReport(config, densityMapDispatcher, clampDispatcher,
-                    packedBitsDispatcher, carverSkipDispatcher, VectorX.class.getClassLoader(), new CompatibilityRegistry(), loadedModIds));
+            LOGGER.info(Diagnostics.fullReport(config, dispatchers, VectorX.class.getClassLoader(),
+                    new CompatibilityRegistry(), loadedModIds));
         }
     }
 }

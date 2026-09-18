@@ -2,10 +2,7 @@ package xyz.blanchot.vectorx.diag;
 
 import xyz.blanchot.vectorx.VectorXConfig;
 import xyz.blanchot.vectorx.compat.CompatibilityRegistry;
-import xyz.blanchot.vectorx.dispatch.CarverSkipDispatcher;
-import xyz.blanchot.vectorx.dispatch.ClampDispatcher;
-import xyz.blanchot.vectorx.dispatch.DensityMapDispatcher;
-import xyz.blanchot.vectorx.dispatch.PackedBitsDispatcher;
+import xyz.blanchot.vectorx.dispatch.KernelDispatcher;
 import xyz.blanchot.vectorx.dispatch.VectorModuleProbe;
 import xyz.blanchot.vectorx.kernel.SelfDescribing;
 
@@ -20,19 +17,17 @@ public final class Diagnostics {
     private Diagnostics() {
     }
 
-    public static String oneLineSummary(DensityMapDispatcher densityMapDispatcher, ClampDispatcher clampDispatcher,
-                                        PackedBitsDispatcher packedBitsDispatcher, CarverSkipDispatcher carverSkipDispatcher) {
+    public static String oneLineSummary(List<KernelDispatcher> dispatchers) {
         int vectorCount = 0;
-        if (densityMapDispatcher.isVector()) vectorCount++;
-        if (clampDispatcher.isVector()) vectorCount++;
-        if (packedBitsDispatcher.isVector()) vectorCount++;
-        if (carverSkipDispatcher.isVector()) vectorCount++;
-        return "VectorX ready: " + vectorCount + "/4 kernels on the vector backend";
+        for (KernelDispatcher dispatcher : dispatchers) {
+            if (dispatcher.isVector()) {
+                vectorCount++;
+            }
+        }
+        return "VectorX ready: " + vectorCount + "/" + dispatchers.size() + " kernels on the vector backend";
     }
 
-    public static String fullReport(VectorXConfig config, DensityMapDispatcher densityMapDispatcher,
-                                    ClampDispatcher clampDispatcher, PackedBitsDispatcher packedBitsDispatcher,
-                                    CarverSkipDispatcher carverSkipDispatcher, ClassLoader loader,
+    public static String fullReport(VectorXConfig config, List<KernelDispatcher> dispatchers, ClassLoader loader,
                                     CompatibilityRegistry registry, List<String> loadedModIds) {
         StringBuilder sb = new StringBuilder();
         sb.append("VectorX diagnostics:\n");
@@ -42,14 +37,10 @@ public final class Diagnostics {
         sb.append("  architecture: ").append(System.getProperty("os.arch")).append('\n');
         sb.append("  selfTest enabled: ").append(config.selfTestEnabled()).append('\n');
 
-        appendKernelLine(sb, DensityMapDispatcher.CONFIG_KEY, densityMapDispatcher.isVector(),
-                densityMapDispatcher.disableReason(), densityMapDispatcher.backend());
-        appendKernelLine(sb, ClampDispatcher.CONFIG_KEY, clampDispatcher.isVector(),
-                clampDispatcher.disableReason(), clampDispatcher.backend());
-        appendKernelLine(sb, PackedBitsDispatcher.CONFIG_KEY, packedBitsDispatcher.isVector(),
-                packedBitsDispatcher.disableReason(), packedBitsDispatcher.backend());
-        appendKernelLine(sb, CarverSkipDispatcher.CONFIG_KEY, carverSkipDispatcher.isVector(),
-                carverSkipDispatcher.disableReason(), carverSkipDispatcher.backend());
+        for (KernelDispatcher dispatcher : dispatchers) {
+            appendKernelLine(sb, dispatcher.configKey(), dispatcher.isVector(),
+                    dispatcher.disableReason(), dispatcher.backend());
+        }
 
         sb.append("  known compatibility entries: ").append(registry.knownConflicts().size()).append('\n');
         for (String modId : loadedModIds) {

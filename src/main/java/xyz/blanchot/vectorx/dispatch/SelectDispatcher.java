@@ -3,47 +3,47 @@ package xyz.blanchot.vectorx.dispatch;
 import xyz.blanchot.vectorx.VectorXConfig;
 import xyz.blanchot.vectorx.VectorXConfig.KernelMode;
 import xyz.blanchot.vectorx.diag.VectorXLog;
-import xyz.blanchot.vectorx.kernel.PackedBitsKernels;
-import xyz.blanchot.vectorx.kernel.scalar.ScalarPackedBitsKernels;
-import xyz.blanchot.vectorx.selftest.PackedBitsSelfTest;
+import xyz.blanchot.vectorx.kernel.DensitySelectKernels;
+import xyz.blanchot.vectorx.kernel.scalar.ScalarDensitySelectKernels;
+import xyz.blanchot.vectorx.selftest.DensitySelectSelfTest;
 
 import java.util.Objects;
 
 /**
- * Fail-open resolver for the {@link PackedBitsKernels} backend.
+ * Fail-open resolver for the {@link DensitySelectKernels} backend.
  *
  * <p>Decision order (first match wins), evaluated once at construction time:
  * <ol>
  *   <li>system property {@code vectorized.forceScalar=true} -&gt; scalar;</li>
  *   <li>config {@code backendForcedScalar=true} -&gt; scalar;</li>
  *   <li>{@code jdk.incubator.vector} absent from the boot module layer -&gt; scalar;</li>
- *   <li>{@code SimdPackedBitsKernels} fails to load/link -&gt; scalar;</li>
- *   <li>config {@code packedStorageUnpack} is {@code "scalar"} or {@code "off"} -&gt; scalar;</li>
+ *   <li>{@code SimdDensitySelectKernels} fails to load/link -&gt; scalar;</li>
+ *   <li>config {@code densityFunctionSelect} is {@code "scalar"} or {@code "off"} -&gt; scalar;</li>
  *   <li>the differential self-test fails -&gt; scalar;</li>
  *   <li>otherwise -&gt; vector.</li>
  * </ol>
  */
-public final class PackedBitsDispatcher implements KernelDispatcher {
+public final class SelectDispatcher implements KernelDispatcher {
 
-    public static final String CONFIG_KEY = "packedStorageUnpack";
-    private static final String SIMD_CLASS_NAME = "xyz.blanchot.vectorx.kernel.simd.SimdPackedBitsKernels";
+    public static final String CONFIG_KEY = "densityFunctionSelect";
+    private static final String SIMD_CLASS_NAME = "xyz.blanchot.vectorx.kernel.simd.SimdDensitySelectKernels";
     private static final String SIMD_INSTANCE_FIELD = "INSTANCE";
 
-    private final PackedBitsKernels backend;
+    private final DensitySelectKernels backend;
     private final boolean vector;
     private final String disableReason;
 
-    public PackedBitsDispatcher(VectorXConfig config, VectorXLog log) {
-        this(config, log, PackedBitsDispatcher.class.getClassLoader());
+    public SelectDispatcher(VectorXConfig config, VectorXLog log) {
+        this(config, log, SelectDispatcher.class.getClassLoader());
     }
 
-    PackedBitsDispatcher(VectorXConfig config, VectorXLog log, ClassLoader loader) {
+    SelectDispatcher(VectorXConfig config, VectorXLog log, ClassLoader loader) {
         Objects.requireNonNull(config, "config");
         Objects.requireNonNull(log, "log");
 
         String reason = globalDisableReason(config);
         if (reason == null) {
-            PackedBitsKernels candidate = tryLoadVectorBackend(loader, log);
+            DensitySelectKernels candidate = tryLoadVectorBackend(loader, log);
             if (candidate == null) {
                 reason = "failed to load " + SIMD_CLASS_NAME;
             } else {
@@ -51,7 +51,7 @@ public final class PackedBitsDispatcher implements KernelDispatcher {
                 if (mode == KernelMode.SCALAR || mode == KernelMode.OFF) {
                     reason = "config " + CONFIG_KEY + "=\"" + mode.configValue() + "\"";
                 } else if (config.selfTestEnabled()) {
-                    PackedBitsSelfTest.Result result = PackedBitsSelfTest.run(ScalarPackedBitsKernels.INSTANCE, candidate);
+                    DensitySelectSelfTest.Result result = DensitySelectSelfTest.run(ScalarDensitySelectKernels.INSTANCE, candidate);
                     if (!result.passed()) {
                         reason = "self-test failed: " + result.failureDescription();
                         log.warn("kernel " + CONFIG_KEY + " falling back to scalar (" + reason + ")");
@@ -67,7 +67,7 @@ public final class PackedBitsDispatcher implements KernelDispatcher {
             }
         }
 
-        this.backend = ScalarPackedBitsKernels.INSTANCE;
+        this.backend = ScalarDensitySelectKernels.INSTANCE;
         this.vector = false;
         this.disableReason = reason;
         log.info(CONFIG_KEY + " using scalar backend (" + reason + ")");
@@ -86,18 +86,18 @@ public final class PackedBitsDispatcher implements KernelDispatcher {
         return null;
     }
 
-    private static PackedBitsKernels tryLoadVectorBackend(ClassLoader loader, VectorXLog log) {
+    private static DensitySelectKernels tryLoadVectorBackend(ClassLoader loader, VectorXLog log) {
         try {
             Class<?> simdClass = Class.forName(SIMD_CLASS_NAME, true, loader);
             Object instance = simdClass.getField(SIMD_INSTANCE_FIELD).get(null);
-            return (PackedBitsKernels) instance;
+            return (DensitySelectKernels) instance;
         } catch (LinkageError | ReflectiveOperationException | ClassCastException e) {
             log.warn(CONFIG_KEY + ": failed to load " + SIMD_CLASS_NAME + ": " + e);
             return null;
         }
     }
 
-    public PackedBitsKernels backend() {
+    public DensitySelectKernels backend() {
         return backend;
     }
 

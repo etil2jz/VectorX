@@ -23,7 +23,7 @@ import java.util.Objects;
  *   <li>otherwise -&gt; vector.</li>
  * </ol>
  */
-public final class ClampDispatcher {
+public final class ClampDispatcher implements KernelDispatcher {
 
     public static final String CONFIG_KEY = "densityFunctionClamp";
     private static final String SIMD_CLASS_NAME = "xyz.blanchot.vectorx.kernel.simd.SimdClampKernels";
@@ -101,6 +101,12 @@ public final class ClampDispatcher {
         return backend;
     }
 
+    @Override
+    public String configKey() {
+        return CONFIG_KEY;
+    }
+
+    @Override
     public boolean isVector() {
         return vector;
     }
@@ -108,6 +114,7 @@ public final class ClampDispatcher {
     /**
      * Non-null only when currently on the scalar path.
      */
+    @Override
     public String disableReason() {
         return disableReason;
     }
